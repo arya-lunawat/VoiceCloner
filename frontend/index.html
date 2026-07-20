@@ -84,6 +84,31 @@
   .status.ok { color: var(--teal); }
   select#voiceSelect { margin-bottom: 8px; }
   audio { width: 100%; margin-top: 12px; }
+  /* Progress bar for long-form generation */
+  .progress-wrap {
+    margin-top: 12px;
+    display: none;
+  }
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--teal);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
   .voice-list { font-family: var(--mono); font-size: 13px; }
   .voice-list .row { justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .voice-list .row:last-child { border-bottom: none; }
@@ -126,9 +151,13 @@
     <label>Voice</label>
     <select id="voiceSelect"></select>
     <label>Script</label>
-    <textarea id="scriptText" placeholder="Type or paste any text to speak in the cloned voice..."></textarea>
+    <textarea id="scriptText" placeholder="Type or paste any text to speak in the cloned voice...&#10;&#10;Long text (entire chapters, articles, etc.) is automatically chunked and processed sequentially. Progress will be shown below."></textarea>
     <button id="generateBtn">Generate audio</button>
     <div class="status" id="generateStatus"></div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel"></div>
+    </div>
     <audio id="player" controls style="display:none"></audio>
   </div>
 
@@ -227,6 +256,10 @@ document.getElementById("generateBtn").onclick = async () => {
   const text = document.getElementById("scriptText").value.trim();
   const statusEl = document.getElementById("generateStatus");
   const player = document.getElementById("player");
+  const progressWrap = document.getElementById("progressWrap");
+  const progressFill = document.getElementById("progressFill");
+  const progressLabel = document.getElementById("progressLabel");
+  const generateBtn = document.getElementById("generateBtn");
 
   if (!voiceId || !text) {
     statusEl.textContent = "Pick a voice and enter some text.";
@@ -239,21 +272,80 @@ document.getElementById("generateBtn").onclick = async () => {
   form.append("text", text);
   form.append("language", "en");
 
-  statusEl.textContent = "Generating...";
+  // Reset UI
+  statusEl.textContent = "Starting generation...";
   statusEl.className = "status";
+  player.style.display = "none";
+  progressWrap.style.display = "none";
+  progressFill.style.width = "0%";
+  generateBtn.disabled = true;
 
   try {
+    // 1. Start the job
     const res = await fetch(API + "/generate-audio", { method: "POST", body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(JSON.stringify(data.detail));
-    statusEl.textContent = "Done.";
-    statusEl.className = "status ok";
-    player.src = data.download_url;
+
+    const jobId = data.job_id;
+    statusEl.textContent = "Job queued. Processing...";
+    progressWrap.style.display = "block";
+    progressLabel.textContent = "Initializing...";
+
+    // 2. Poll for status
+    let done = false;
+    while (!done) {
+      await new Promise(r => setTimeout(r, 1500)); // poll every 1.5s
+
+      const statusRes = await fetch(API + `/generate-audio/${jobId}/status`);
+      const statusData = await statusRes.json();
+      if (!statusRes.ok) throw new Error(JSON.stringify(statusData.detail));
+
+      // Update progress bar
+      const total = statusData.total_chunks;
+      const completed = statusData.completed_chunks;
+      if (total && total > 0) {
+        const pct = Math.min(100, Math.round((completed / total) * 100));
+        progressFill.style.width = pct + "%";
+        progressLabel.textContent = `Chunk ${completed} of ${total} (${pct}%)`;
+      } else {
+        progressLabel.textContent = statusData.progress || "Processing...";
+      }
+
+      statusEl.textContent = statusData.progress || "Processing...";
+
+      if (statusData.status === "completed") {
+        done = true;
+      } else if (statusData.status === "failed") {
+        throw new Error(statusData.error || "Generation failed");
+      }
+    }
+
+    // 3. Fetch the result audio
+    statusEl.textContent = "Loading audio...";
+    const resultRes = await fetch(API + `/generate-audio/${jobId}`);
+    if (!resultRes.ok) {
+      const errData = await resultRes.json();
+      throw new Error(JSON.stringify(errData.detail));
+    }
+
+    // Create an object URL from the blob
+    const blob = await resultRes.blob();
+    const url = URL.createObjectURL(blob);
+    player.src = url;
     player.style.display = "block";
     player.play();
+
+    progressFill.style.width = "100%";
+    progressLabel.textContent = "Done!";
+    statusEl.textContent = "Generation complete.";
+    statusEl.className = "status ok";
+
   } catch (e) {
     statusEl.textContent = "Failed: " + e.message;
     statusEl.className = "status err";
+    progressLabel.textContent = "Error";
+  } finally {
+    generateBtn.disabled = false;
   }
 };
 
