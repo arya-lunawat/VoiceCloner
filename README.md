@@ -13,14 +13,17 @@ free, open-source components. No paid APIs, no cloud bill required.
 - **Ethics/safety**: mandatory consent checkbox before upload, metadata
   watermark + generation log on every output, one-click profile deletion
 
-## Important: license note on XTTS v2
+## License
 
-XTTS v2 is **free to download and run**, but it ships under Coqui's
-**CPML (Coqui Public Model License)** — free for personal, research, and
-non-commercial use. If you ever want to charge people to use this or run it
-as a paid product, you'd need a commercial license from Coqui (or swap in a
-fully commercial-friendly model like OpenVoice or F5-TTS, which have more
-permissive licenses — happy to help swap this in later).
+**App code:** This repository's own source code is licensed under the
+[MIT License](LICENSE) — free for any use, including commercial.
+
+**XTTS v2 model:** The app depends on Coqui XTTS v2, which is free to
+download and run but ships under Coqui's **CPML (Coqui Public Model
+License)** — free for personal, research, and non-commercial use only. If
+you ever want to charge users or run this as a paid product, you'd need a
+commercial license from Coqui (or swap in a fully commercial-friendly model
+like OpenVoice or F5-TTS, which have more permissive licenses).
 
 ## Setup
 

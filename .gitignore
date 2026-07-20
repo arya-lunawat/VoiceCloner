@@ -22,6 +22,10 @@ ENV/
 *.key
 *.crt
 
+# SQLite database files (note: backend/voice_clone.db was already committed)
+*.db
+*.db-journal
+
 # Local uploads and generated media
 uploads/
 generated_audio/
@@ -43,6 +47,9 @@ embeddings/
 *.log
 *.tmp
 *.temp
+
+# Nested copy of the repo
+/voice-clone-app/
 
 # IDE/editor settings
 .vscode/

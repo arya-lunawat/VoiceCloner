@@ -19,11 +19,13 @@ import tts_engine
 import watermark
 
 BASE_DIR = os.path.dirname(__file__)
-UPLOAD_DIR = os.path.join(BASE_DIR, "..", "uploads")
-EMBED_DIR = os.path.join(BASE_DIR, "..", "embeddings")
-GEN_DIR = os.path.join(BASE_DIR, "..", "generated_audio")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(BASE_DIR, "..", "uploads"))
+EMBED_DIR = os.getenv("EMBED_DIR", os.path.join(BASE_DIR, "..", "embeddings"))
+GEN_DIR = os.getenv("GEN_DIR", os.path.join(BASE_DIR, "..", "generated_audio"))
 for d in (UPLOAD_DIR, EMBED_DIR, GEN_DIR):
     os.makedirs(d, exist_ok=True)
+
+PORT = int(os.getenv("PORT", 8000))
 
 app = FastAPI(title="Voice Clone App (Free/Open-Source MVP)")
 
@@ -38,7 +40,17 @@ db.init_db()
 
 
 @app.on_event("startup")
-def warm_up_model():
+def startup_checks():
+    """Verify system dependencies and warm up the model on boot."""
+    # Ensure ffmpeg is available (pydub depends on it for audio conversion)
+    if not shutil.which("ffmpeg"):
+        raise RuntimeError(
+            "ffmpeg is not installed or not on PATH. "
+            "Install it via 'brew install ffmpeg' (macOS), "
+            "'sudo apt-get install ffmpeg' (Debian/Ubuntu), "
+            "or 'conda install -c conda-forge ffmpeg' (conda). "
+            "The app cannot convert uploaded audio without it."
+        )
     # Loads XTTS v2 once at startup instead of on first request.
     tts_engine.get_tts()
 

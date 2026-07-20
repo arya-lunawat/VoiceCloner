@@ -14,8 +14,8 @@ import os
 import torch
 from TTS.api import TTS
 
-_MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"
-_device = "cuda" if torch.cuda.is_available() else "cpu"
+_MODEL_NAME = os.getenv("MODEL_NAME", "tts_models/multilingual/multi-dataset/xtts_v2")
+_device = os.getenv("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
 
 _tts_instance = None
 
