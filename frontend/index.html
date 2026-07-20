@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Voice Clone Console</title>
+<style>
+  :root {
+    --bg: #14181a;
+    --panel: #1c2224;
+    --panel-raised: #232a2c;
+    --line: #303839;
+    --text: #e7ece9;
+    --muted: #8ba39a;
+    --amber: #e8a13a;
+    --teal: #4fb8a8;
+    --danger: #d9695a;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    --sans: "IBM Plex Sans", -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+  .rail {
+    position: fixed; top:0; left:0; bottom:0; width:6px;
+    background: repeating-linear-gradient(180deg, var(--amber) 0 2px, transparent 2px 8px);
+    opacity: .5;
+  }
+  header {
+    padding: 28px 32px 18px 40px;
+    border-bottom: 1px solid var(--line);
+  }
+  header .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .12em;
+    color: var(--teal); text-transform: uppercase;
+  }
+  header h1 {
+    margin: 6px 0 0; font-size: 26px; font-weight: 600; letter-spacing: -0.01em;
+  }
+  .wrap {
+    max-width: 920px; margin: 0 auto; padding: 32px 24px 80px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+  .panel h2 {
+    font-family: var(--mono); font-size: 13px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel h2 .n {
+    color: var(--amber); font-weight: 700;
+  }
+  label { display:block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input[type=text], textarea, select {
+    width: 100%; background: var(--panel-raised); border: 1px solid var(--line);
+    color: var(--text); border-radius: 6px; padding: 10px 12px; font-family: var(--sans);
+    font-size: 14px; margin-bottom: 14px;
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  input[type=file] { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .row { display:flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .check { display:flex; align-items:flex-start; gap: 10px; margin: 4px 0 16px; }
+  .check input { margin-top: 3px; }
+  .check span { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  button {
+    background: var(--teal); color: #08211c; border: none; border-radius: 6px;
+    padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer;
+    font-family: var(--sans);
+  }
+  button.secondary { background: transparent; border: 1px solid var(--line); color: var(--text); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .status { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 10px; white-space: pre-wrap; }
+  .status.err { color: var(--danger); }
+  .status.ok { color: var(--teal); }
+  select#voiceSelect { margin-bottom: 8px; }
+  audio { width: 100%; margin-top: 12px; }
+  .voice-list { font-family: var(--mono); font-size: 13px; }
+  .voice-list .row { justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .voice-list .row:last-child { border-bottom: none; }
+  footer { text-align:center; color: var(--muted); font-size: 12px; padding: 30px 0 10px; }
+</style>
+</head>
+<body>
+<div class="rail"></div>
+<header>
+  <div class="eyebrow">Local · Self-hosted · Free stack</div>
+  <h1>Voice Clone Console</h1>
+</header>
+
+<div class="wrap">
+
+  <div class="panel">
+    <h2><span class="n">01</span> Upload voice samples</h2>
+    <label>Profile name</label>
+    <input type="text" id="profileName" placeholder="e.g. My Voice" />
+    <label>Recordings (wav / mp3 / flac / m4a — 30s+ recommended, more is better)</label>
+    <input type="file" id="fileInput" multiple accept=".wav,.mp3,.flac,.m4a" />
+    <div class="check">
+      <input type="checkbox" id="consent" />
+      <span>I confirm I have the legal right to clone this voice (it's my own voice, or I have the speaker's explicit consent), and I will not use generated audio to impersonate anyone without consent.</span>
+    </div>
+    <button id="uploadBtn">Upload &amp; preprocess</button>
+    <div class="status" id="uploadStatus"></div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="n">02</span> Build voice profile</h2>
+    <div class="row">
+      <button id="buildBtn" class="secondary" disabled>Create voice profile from latest upload</button>
+    </div>
+    <div class="status" id="buildStatus"></div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="n">03</span> Generate speech</h2>
+    <label>Voice</label>
+    <select id="voiceSelect"></select>
+    <label>Script</label>
+    <textarea id="scriptText" placeholder="Type or paste any text to speak in the cloned voice..."></textarea>
+    <button id="generateBtn">Generate audio</button>
+    <div class="status" id="generateStatus"></div>
+    <audio id="player" controls style="display:none"></audio>
+  </div>
+
+  <div class="panel">
+    <h2><span class="n">04</span> My voices</h2>
+    <div class="voice-list" id="voiceList">— none yet —</div>
+  </div>
+
+</div>
+
+<footer>Runs entirely on your own machine · XTTS v2 (Coqui, CPML license) · SQLite · local storage</footer>
+
+<script>
+const API = ""; // same origin
+
+let lastProfileId = null;
+
+async function refreshVoices() {
+  const res = await fetch(API + "/voices");
+  const voices = await res.json();
+  const list = document.getElementById("voiceList");
+  const select = document.getElementById("voiceSelect");
+  select.innerHTML = "";
+  if (voices.length === 0) {
+    list.innerHTML = "— none yet —";
+  } else {
+    list.innerHTML = voices.map(v =>
+      `<div class="row"><span>${v.name}</span><span>${v.status}</span></div>`
+    ).join("");
+  }
+  voices.filter(v => v.status === "ready").forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v.id;
+    opt.textContent = v.name;
+    select.appendChild(opt);
+  });
+}
+
+document.getElementById("uploadBtn").onclick = async () => {
+  const name = document.getElementById("profileName").value.trim();
+  const consent = document.getElementById("consent").checked;
+  const files = document.getElementById("fileInput").files;
+  const statusEl = document.getElementById("uploadStatus");
+
+  if (!name || files.length === 0 || !consent) {
+    statusEl.textContent = "Add a name, at least one file, and confirm consent.";
+    statusEl.className = "status err";
+    return;
+  }
+
+  const form = new FormData();
+  form.append("name", name);
+  form.append("consent_confirmed", "true");
+  for (const f of files) form.append("files", f);
+
+  statusEl.textContent = "Uploading + preprocessing (noise removal, trimming, VAD)...";
+  statusEl.className = "status";
+
+  try {
+    const res = await fetch(API + "/upload-voice", { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data.detail));
+    lastProfileId = data.voice_profile_id;
+    statusEl.textContent = `Accepted ${data.accepted_samples} sample(s). Profile ID: ${lastProfileId}` +
+      (data.rejected_samples.length ? `\nRejected: ${JSON.stringify(data.rejected_samples)}` : "");
+    statusEl.className = "status ok";
+    document.getElementById("buildBtn").disabled = false;
+  } catch (e) {
+    statusEl.textContent = "Failed: " + e.message;
+    statusEl.className = "status err";
+  }
+};
+
+document.getElementById("buildBtn").onclick = async () => {
+  const statusEl = document.getElementById("buildStatus");
+  if (!lastProfileId) return;
+  statusEl.textContent = "Computing speaker embedding (this can take a minute)...";
+  statusEl.className = "status";
+  const form = new FormData();
+  form.append("voice_profile_id", lastProfileId);
+  try {
+    const res = await fetch(API + "/create-voice-profile", { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data.detail));
+    statusEl.textContent = "Voice profile ready.";
+    statusEl.className = "status ok";
+    refreshVoices();
+  } catch (e) {
+    statusEl.textContent = "Failed: " + e.message;
+    statusEl.className = "status err";
+  }
+};
+
+document.getElementById("generateBtn").onclick = async () => {
+  const voiceId = document.getElementById("voiceSelect").value;
+  const text = document.getElementById("scriptText").value.trim();
+  const statusEl = document.getElementById("generateStatus");
+  const player = document.getElementById("player");
+
+  if (!voiceId || !text) {
+    statusEl.textContent = "Pick a voice and enter some text.";
+    statusEl.className = "status err";
+    return;
+  }
+
+  const form = new FormData();
+  form.append("voice_profile_id", voiceId);
+  form.append("text", text);
+  form.append("language", "en");
+
+  statusEl.textContent = "Generating...";
+  statusEl.className = "status";
+
+  try {
+    const res = await fetch(API + "/generate-audio", { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data.detail));
+    statusEl.textContent = "Done.";
+    statusEl.className = "status ok";
+    player.src = data.download_url;
+    player.style.display = "block";
+    player.play();
+  } catch (e) {
+    statusEl.textContent = "Failed: " + e.message;
+    statusEl.className = "status err";
+  }
+};
+
+refreshVoices();
+</script>
+</body>
+</html>
