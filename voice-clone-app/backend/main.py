@@ -7,6 +7,8 @@ Run: uvicorn main:app --reload --port 8000
 import os
 import json
 import shutil
+import threading
+import logging
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,12 +20,16 @@ import preprocessing
 import tts_engine
 import watermark
 
+logger = logging.getLogger(__name__)
+
 BASE_DIR = os.path.dirname(__file__)
-UPLOAD_DIR = os.path.join(BASE_DIR, "..", "uploads")
-EMBED_DIR = os.path.join(BASE_DIR, "..", "embeddings")
-GEN_DIR = os.path.join(BASE_DIR, "..", "generated_audio")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(BASE_DIR, "..", "uploads"))
+EMBED_DIR = os.getenv("EMBED_DIR", os.path.join(BASE_DIR, "..", "embeddings"))
+GEN_DIR = os.getenv("GEN_DIR", os.path.join(BASE_DIR, "..", "generated_audio"))
 for d in (UPLOAD_DIR, EMBED_DIR, GEN_DIR):
     os.makedirs(d, exist_ok=True)
+
+PORT = int(os.getenv("PORT", 8000))
 
 app = FastAPI(title="Voice Clone App (Free/Open-Source MVP)")
 
@@ -38,9 +44,101 @@ db.init_db()
 
 
 @app.on_event("startup")
-def warm_up_model():
+def startup_checks():
+    """Verify system dependencies and warm up the model on boot."""
+    # Ensure ffmpeg is available (pydub depends on it for audio conversion)
+    if not shutil.which("ffmpeg"):
+        raise RuntimeError(
+            "ffmpeg is not installed or not on PATH. "
+            "Install it via 'brew install ffmpeg' (macOS), "
+            "'sudo apt-get install ffmpeg' (Debian/Ubuntu), "
+            "or 'conda install -c conda-forge ffmpeg' (conda). "
+            "The app cannot convert uploaded audio without it."
+        )
     # Loads XTTS v2 once at startup instead of on first request.
     tts_engine.get_tts()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  In-memory background job tracking
+# ═══════════════════════════════════════════════════════════════════════
+#
+# A simple thread-safe dict holds all active generation jobs.  Each job
+# has the following structure:
+#
+#   {
+#       "status": "processing" | "completed" | "failed",
+#       "progress": "chunk X of Y" | "done" | str(error),
+#       "total_chunks": int | None,
+#       "completed_chunks": int,
+#       "generation_id": str | None,    # set when complete
+#       "output_path": str | None,      # set when complete
+#       "error": str | None,            # set on failure
+#   }
+#
+_jobs: dict[str, dict] = {}
+_jobs_lock = threading.Lock()
+
+
+def _generate_in_background(
+    job_id: str,
+    text: str,
+    voice_profile_id: str,
+    embedding_path: str,
+    language: str,
+    generation_id: str,
+    out_path: str,
+    created_at: str,
+):
+    """
+    Background thread target: runs the long-form generation and updates
+    the job dict with progress.
+    """
+    def progress_callback(current: int, total: int):
+        with _jobs_lock:
+            if job_id in _jobs:
+                _jobs[job_id]["completed_chunks"] = current
+                _jobs[job_id]["total_chunks"] = total
+                _jobs[job_id]["progress"] = f"Processing chunk {current} of {total}"
+
+    try:
+        logger.info("Job %s: starting long-form generation (%d chars)", job_id, len(text))
+        tts_engine.generate_speech_long(
+            text=text,
+            embedding_path=embedding_path,
+            output_path=out_path,
+            language=language,
+            progress_callback=progress_callback,
+        )
+        # Tag the audio with metadata
+        watermark.tag_generated_audio(out_path, generation_id, voice_profile_id, created_at)
+
+        # Record in database
+        with db.get_conn() as conn:
+            conn.execute(
+                "INSERT INTO generations (id, voice_profile_id, text, audio_path, created_at, is_favorite) "
+                "VALUES (?, ?, ?, ?, ?, 0)",
+                (generation_id, voice_profile_id, text, out_path, created_at),
+            )
+            conn.commit()
+
+        with _jobs_lock:
+            if job_id in _jobs:
+                _jobs[job_id]["status"] = "completed"
+                _jobs[job_id]["progress"] = "done"
+                _jobs[job_id]["generation_id"] = generation_id
+                _jobs[job_id]["output_path"] = out_path
+                _jobs[job_id]["total_chunks"] = _jobs[job_id].get("total_chunks") or 0
+
+        logger.info("Job %s: completed successfully -> %s", job_id, out_path)
+
+    except Exception as e:
+        logger.exception("Job %s failed: %s", job_id, e)
+        with _jobs_lock:
+            if job_id in _jobs:
+                _jobs[job_id]["status"] = "failed"
+                _jobs[job_id]["progress"] = str(e)
+                _jobs[job_id]["error"] = str(e)
 
 
 # ---------- 1. Upload + preprocess ----------
@@ -144,7 +242,7 @@ async def list_voices():
     return [dict(r) for r in rows]
 
 
-# ---------- 4. Generate speech ----------
+# ---------- 4. Generate speech (long-form, async) ----------
 
 @app.post("/generate-audio")
 async def generate_audio(
@@ -152,6 +250,14 @@ async def generate_audio(
     text: str = Form(...),
     language: str = Form("en"),
 ):
+    """
+    Start a (potentially long) text-to-speech generation job.
+
+    Returns immediately with a ``job_id``.  Poll
+    ``GET /generate-audio/{job_id}/status`` for progress updates.
+    When the job status is ``"completed"``, the result audio is available
+    at ``GET /generate-audio/{job_id}``.
+    """
     if not text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty.")
 
@@ -164,28 +270,108 @@ async def generate_audio(
     if row["status"] != "ready":
         raise HTTPException(status_code=400, detail="Voice profile is not ready yet.")
 
+    # Create the job entry
     generation_id = db.new_id()
     out_path = os.path.join(GEN_DIR, f"{generation_id}.wav")
     created_at = db.now()
 
-    try:
-        tts_engine.generate_speech(text, row["embedding_path"], out_path, language=language)
-        watermark.tag_generated_audio(out_path, generation_id, voice_profile_id, created_at)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
+    job_id = db.new_id()
 
-    with db.get_conn() as conn:
-        conn.execute(
-            "INSERT INTO generations (id, voice_profile_id, text, audio_path, created_at, is_favorite) "
-            "VALUES (?, ?, ?, ?, ?, 0)",
-            (generation_id, voice_profile_id, text, out_path, created_at),
+    with _jobs_lock:
+        _jobs[job_id] = {
+            "status": "processing",
+            "progress": "queued",
+            "total_chunks": None,
+            "completed_chunks": 0,
+            "generation_id": None,
+            "output_path": None,
+            "error": None,
+        }
+
+    # Launch background thread
+    thread = threading.Thread(
+        target=_generate_in_background,
+        args=(
+            job_id,
+            text,
+            voice_profile_id,
+            row["embedding_path"],
+            language,
+            generation_id,
+            out_path,
+            created_at,
+        ),
+        daemon=True,
+    )
+    thread.start()
+
+    return {
+        "job_id": job_id,
+        "status": "processing",
+        "poll_url": f"/generate-audio/{job_id}/status",
+    }
+
+
+@app.get("/generate-audio/{job_id}/status")
+async def get_generation_status(job_id: str):
+    """Poll the progress of a generation job."""
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+    response = {
+        "job_id": job_id,
+        "status": job["status"],
+        "progress": job["progress"],
+        "total_chunks": job["total_chunks"],
+        "completed_chunks": job["completed_chunks"],
+    }
+
+    if job["status"] == "completed":
+        response["download_url"] = f"/generate-audio/{job_id}"
+    if job["status"] == "failed":
+        response["error"] = job.get("error")
+
+    return response
+
+
+@app.get("/generate-audio/{job_id}")
+async def get_generation_result(job_id: str):
+    """
+    Download the result of a completed generation job.
+
+    Returns the audio file if the job is completed, or an error if it's
+    still processing or failed.
+    """
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job["status"] == "processing":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job is still processing: {job['progress']}",
         )
-        conn.commit()
+    if job["status"] == "failed":
+        raise HTTPException(
+            status_code=500,
+            detail=f"Generation failed: {job.get('error')}",
+        )
 
-    return {"generation_id": generation_id, "download_url": f"/audio/{generation_id}"}
+    if not job["output_path"] or not os.path.exists(job["output_path"]):
+        raise HTTPException(status_code=404, detail="Generated audio file not found.")
+
+    return FileResponse(
+        job["output_path"],
+        media_type="audio/wav",
+        filename=f"{job['generation_id']}.wav",
+    )
 
 
-# ---------- 5. Download / stream generated audio ----------
+# ---------- 5. Download / stream generated audio (legacy lookup by generation_id) ----------
 
 @app.get("/audio/{generation_id}")
 async def get_audio(generation_id: str):
@@ -235,3 +421,4 @@ async def delete_voice_profile(voice_profile_id: str):
 frontend_dir = os.path.join(BASE_DIR, "..", "frontend")
 if os.path.isdir(frontend_dir):
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+
