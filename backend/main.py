@@ -152,7 +152,7 @@ async def upload_voice(
     if not consent_confirmed:
         raise HTTPException(
             status_code=400,
-            detail="You must confirm you have the right to clone this voice before uploading.",
+            detail="You must confirm consent (you have the right to clone this voice) before uploading.",
         )
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded.")

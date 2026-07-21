@@ -77,10 +77,24 @@ Open **http://localhost:8000** — the frontend is served automatically.
   local/personal use; add auth before exposing it publicly.
 - No automatic rejection of multi-speaker recordings yet (VAD catches
   silence/music, not "two people talking").
+- **In-memory job tracking is lost on server restart** — the `_jobs` dict in
+  `main.py` tracks generation progress in memory only. If the server restarts,
+  all in-flight jobs are lost. A production version should persist job state to
+  SQLite (or a queue like Redis) alongside generations.
 - Generation is synchronous — a long script will make the request wait.
   For long-form scripts, chunk the text client-side or add a background
   job queue (e.g. free `arq` or `celery` + Redis) later.
 - CORS is wide open (`*`) — tighten before deploying anywhere public.
+
+## GitHub metadata
+
+**Description**: Free/open-source local voice cloning app using Coqui XTTS v2,
+FastAPI, and SQLite. Zero-shot voice cloning, speech generation, ethical safeguards.
+
+**Topics**: `voice-cloning`, `text-to-speech`, `fastapi`, `xtts`, `coqui`,
+`tts`, `open-source`, `ai-voice-cloning`, `python`
+
+> Add these under your repository's "About" section on GitHub for discoverability.
 
 ## Next steps if you want to grow this
 

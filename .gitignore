@@ -23,7 +23,10 @@ ENV/
 *.key
 *.crt
 
-# SQLite database files (note: backend/voice_clone.db was already committed)
+# SQLite database files
+# Note: backend/voice_clone.db was previously tracked; removed via:
+#   git rm --cached backend/voice_clone.db
+# See git history if you need to recover it locally.
 *.db
 *.db-journal
 
