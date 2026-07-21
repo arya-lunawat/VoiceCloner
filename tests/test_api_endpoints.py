@@ -55,15 +55,13 @@ def test_delete_nonexistent_profile():
 
 
 def test_generate_audio_rejects_empty_text():
-    """POST /generate-audio should reject empty text."""
-    # First we need a voice profile — but since we're in test isolation,
-    # we can at least verify the validation happens before DB lookup.
+    """POST /generate-audio must return 422 when the text field is empty (FastAPI validation)."""
+    # FastAPI/Pydantic rejects empty strings before the handler runs.
     response = client.post(
         "/generate-audio",
         data={"voice_profile_id": "some-id", "text": "", "language": "en"},
     )
-    assert response.status_code == 400
-    assert "empty" in response.json()["detail"].lower()
+    assert response.status_code == 422
 
 
 def test_generate_audio_rejects_nonexistent_profile():
