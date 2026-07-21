@@ -92,7 +92,22 @@ def chunk_text(text: str, max_chars: int = MAX_CHARS) -> list[str]:
                 # Step 3: Sentence too long — split on clauses.
                 _split_long_sentence(sent, max_chars, chunks)
 
-    return chunks
+    # Step 4: Combine adjacent short chunks so we don't end up with
+    # one-chunk-per-tiny-sentence when many short sentences appear in a row.
+    combined: list[str] = []
+    current = ""
+    for chunk in chunks:
+        if not current:
+            current = chunk
+        elif len(current) + 1 + len(chunk) <= max_chars:
+            current = current + " " + chunk
+        else:
+            combined.append(current)
+            current = chunk
+    if current:
+        combined.append(current)
+
+    return combined if combined else chunks
 
 
 # ── Internal helpers ─────────────────────────────────────────────────────
