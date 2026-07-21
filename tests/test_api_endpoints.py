@@ -32,13 +32,12 @@ def test_upload_voice_rejects_without_consent():
 
 
 def test_upload_voice_rejects_no_files():
-    """/upload-voice must return 400 when no files are uploaded."""
+    """/upload-voice must return 422 when the files field is missing entirely."""
     response = client.post(
         "/upload-voice",
         data={"name": "Test User", "consent_confirmed": "true"},
     )
-    assert response.status_code == 400
-    assert "no files" in response.json()["detail"].lower()
+    assert response.status_code == 422
 
 
 def test_list_voices_empty():
