@@ -1,0 +1,68 @@
+# Auto-detect text files and normalize line endings to LF
+* text=auto
+
+# Python source files - keep LF line endings
+*.py text eol=lf
+
+# Shell scripts - must stay LF
+*.sh text eol=lf
+
+# Batch scripts - keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Web files
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+
+# Markdown and text
+*.md text eol=lf
+*.txt text eol=lf
+
+# Config files
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+
+# Git files
+.gitattributes text
+.gitignore text
+
+# Lock files - binary
+*.lock binary
+
+# Audio files - binary
+*.wav binary
+*.mp3 binary
+*.m4a binary
+*.flac binary
+*.ogg binary
+
+# Model files - binary
+*.pt binary
+*.pth binary
+*.pkl binary
+*.bin binary
+*.onnx binary
+
+# Image files - binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.svg binary
+*.ico binary
+
+# Archives - binary
+*.zip binary
+*.tar.gz binary
+*.rar binary
+
+# Database - binary
+*.db binary
+*.db-journal binary
+

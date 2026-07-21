@@ -1,24 +1,26 @@
 # All free / open-source. No paid API keys required.
+# Updated for Python 3.13 compatibility (pre-built wheels on Windows)
 
-fastapi==0.111.0
-uvicorn[standard]==0.30.1
-python-multipart==0.0.9
-pydantic==2.7.1
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.1
+python-multipart>=0.0.9
+pydantic>=2.7.1
 
 # Audio processing
-librosa==0.10.2
-soundfile==0.12.1
-pydub==0.25.1
-numpy==1.26.4
-scipy==1.13.1
+librosa>=0.10.2
+soundfile>=0.12.1
+pydub>=0.25.1
+numpy>=1.26.4
+scipy>=1.14.0           # 1.14+ has Python 3.13 wheels
 
 # Voice activity detection (lightweight, free)
-webrtcvad==2.0.10
+webrtcvad>=2.0.10
 
-# TTS / voice cloning engine (Coqui XTTS v2 - free, CPML license: personal/non-commercial)
-TTS==0.22.0
-torch==2.3.0
-torchaudio==2.3.0
+# TTS / voice cloning engine (Coqui XTTS v2)
+# TTS==0.22.0 has no Python 3.13 wheel; install with pip install TTS
+TTS
+torch>=2.4.0
+torchaudio>=2.4.0
 
 # Simple watermarking / metadata tagging
-mutagen==1.47.0
+mutagen>=1.47.0
