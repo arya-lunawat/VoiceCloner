@@ -13,6 +13,10 @@ free, open-source components. No paid APIs, no cloud bill required.
 - **Ethics/safety**: mandatory consent checkbox before upload, metadata
   watermark + generation log on every output, one-click profile deletion
 
+## Screenshots
+
+![Voice Clone App](screenshots/image.png)
+
 ## License
 
 **App code:** This repository's own source code is licensed under the
