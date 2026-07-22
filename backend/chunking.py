@@ -75,9 +75,11 @@ def chunk_text(text: str, max_chars: int = MAX_CHARS) -> list[str]:
     paragraphs = re.split(r"\n\n+", text)
     paragraphs = [p.strip() for p in paragraphs if p.strip()]
 
-    chunks: list[str] = []
+    # Each entry is (chunk_text, paragraph_index) so Step 4 can avoid
+    # merging chunks that came from different paragraphs.
+    chunks: list[tuple[str, int]] = []
 
-    for para in paragraphs:
+    for para_idx, para in enumerate(paragraphs):
         # Flatten internal single-newlines to spaces so that hard-wrapped
         # prose doesn't get weird spacing during TTS.
         para = para.replace("\n", " ")
@@ -85,29 +87,37 @@ def chunk_text(text: str, max_chars: int = MAX_CHARS) -> list[str]:
         # Step 2: Split paragraph into sentences.
         sentences = _split_sentences(para)
 
+        para_chunks: list[str] = []
         for sent in sentences:
             if len(sent) <= max_chars:
-                chunks.append(sent)
+                para_chunks.append(sent)
             else:
                 # Step 3: Sentence too long — split on clauses.
-                _split_long_sentence(sent, max_chars, chunks)
+                _split_long_sentence(sent, max_chars, para_chunks)
+
+        chunks.extend((c, para_idx) for c in para_chunks)
 
     # Step 4: Combine adjacent short chunks so we don't end up with
     # one-chunk-per-tiny-sentence when many short sentences appear in a row.
+    # Chunks from different paragraphs are never merged together, so
+    # paragraph breaks stay intact as separate chunks.
     combined: list[str] = []
     current = ""
-    for chunk in chunks:
+    current_para = None
+    for chunk, para_idx in chunks:
         if not current:
             current = chunk
-        elif len(current) + 1 + len(chunk) <= max_chars:
+            current_para = para_idx
+        elif para_idx == current_para and len(current) + 1 + len(chunk) <= max_chars:
             current = current + " " + chunk
         else:
             combined.append(current)
             current = chunk
+            current_para = para_idx
     if current:
         combined.append(current)
 
-    return combined if combined else chunks
+    return combined if combined else [c for c, _ in chunks]
 
 
 # ── Internal helpers ─────────────────────────────────────────────────────
@@ -194,4 +204,3 @@ def _word_wrap(text: str, max_chars: int, out: list[str]) -> None:
 
     if current:
         out.append(current)
-
