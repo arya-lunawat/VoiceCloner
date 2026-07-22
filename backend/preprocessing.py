@@ -81,20 +81,21 @@ def check_duration(wav_path: str) -> float:
 
 
 def preprocess_voice_sample(input_path: str, output_dir: str, filename_base: str) -> dict:
-    """
-    Full pipeline for one uploaded recording:
-    1. Convert to wav
-    2. Normalize volume
-    3. Trim silence
-    4. Voice-activity check (rejects music-only / mostly-silent clips)
-    5. Duration check (rejects too-short clips)
-
-    Returns dict with processed path + quality metrics. Raises PreprocessingError on rejection.
-    """
     os.makedirs(output_dir, exist_ok=True)
 
     raw_wav = os.path.join(output_dir, f"{filename_base}_raw.wav")
     convert_to_wav(input_path, raw_wav)
+
+    # VAD check must run on the un-amplified signal. WebRTC VAD looks at raw
+    # sub-band energy, not "is this actually a voice" — so if we normalize
+    # quiet noise up to speech-level loudness (-20 dBFS) *before* running VAD,
+    # it will misclassify that boosted noise as speech every time. Checking
+    # a 16kHz copy of the raw (pre-normalization) audio avoids that.
+    vad_check_path = os.path.join(output_dir, f"{filename_base}_vadcheck.wav")
+    y, _ = librosa.load(raw_wav, sr=16000, mono=True)
+    sf.write(vad_check_path, y, 16000, subtype="PCM_16")
+    voiced_ratio = run_vad_check(vad_check_path)
+    os.remove(vad_check_path)
 
     audio = AudioSegment.from_wav(raw_wav)
     audio = normalize_volume(audio)
@@ -109,13 +110,6 @@ def preprocess_voice_sample(input_path: str, output_dir: str, filename_base: str
             f"Clip too short after trimming ({duration:.1f}s). "
             f"Please upload at least {MIN_DURATION_SEC}s of clear speech."
         )
-
-    # VAD check needs a 16kHz mono copy
-    vad_check_path = os.path.join(output_dir, f"{filename_base}_vadcheck.wav")
-    y, _ = librosa.load(processed_path, sr=16000, mono=True)
-    sf.write(vad_check_path, y, 16000, subtype="PCM_16")
-    voiced_ratio = run_vad_check(vad_check_path)
-    os.remove(vad_check_path)
 
     if voiced_ratio < (1 - MAX_SILENCE_RATIO):
         raise PreprocessingError(
