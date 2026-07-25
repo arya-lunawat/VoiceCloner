@@ -129,6 +129,30 @@
   }
   button.danger { background: var(--rose); color: #220806; }
   button:disabled { opacity: .5; cursor: not-allowed; }
+  .file-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 7px;
+    padding: 11px 15px;
+    background: var(--teal);
+    color: var(--ink);
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 40px;
+    font-size: 14px;
+    font-family: var(--sans);
+    margin-bottom: 14px;
+  }
+  .file-button:hover { opacity: .9; }
+  .file-name {
+    color: var(--muted);
+    font-size: 13px;
+    margin-left: 8px;
+    font-family: var(--mono);
+  }
   .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .space { justify-content: space-between; }
   .status {
@@ -316,7 +340,9 @@ function renderRecord() {
           </div>
           <p class="hint">Use a quiet room and speak naturally. Thirty seconds or more gives the model better material.</p>
           <label style="text-align:left; margin-top:22px">Upload audio file</label>
-          <input id="audioUpload" type="file" accept=".wav,.mp3,.flac,.m4a,.ogg,.webm,audio/*" />
+          <input id="audioUpload" type="file" accept=".wav,.mp3,.flac,.m4a,.ogg,.webm,audio/*" hidden />
+          <label for="audioUpload" class="file-button">Choose File</label>
+          <span class="file-name" id="fileNameDisplay">No file chosen</span>
         </div>
       </section>
       <section class="panel">
@@ -382,6 +408,7 @@ async function startRecording() {
 function handleAudioUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
+  document.getElementById("fileNameDisplay").textContent = file.name;
   if (mediaRecorder && mediaRecorder.state !== "inactive") {
     stopRecording();
   }
@@ -418,6 +445,7 @@ function resetRecording() {
   document.getElementById("audioUpload").disabled = false;
   document.getElementById("saveBtn").disabled = true;
   document.getElementById("resetBtn").disabled = true;
+  document.getElementById("fileNameDisplay").textContent = "No file chosen";
   setStatus("recordStatus", "Ready for a fresh take.");
 }
 
