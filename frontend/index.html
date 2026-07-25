@@ -97,6 +97,15 @@
     font: 14px var(--sans);
     margin-bottom: 14px;
   }
+  input[type=file] {
+    width: 100%;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 10px;
+    margin-bottom: 14px;
+  }
   textarea { min-height: 210px; resize: vertical; line-height: 1.5; }
   button, .button {
     border: 0;
@@ -210,6 +219,7 @@ const nav = document.getElementById("nav");
 let mediaRecorder = null;
 let recordedChunks = [];
 let recordedBlob = null;
+let recordedFileName = "recording.webm";
 let timerId = null;
 let seconds = 0;
 
@@ -291,9 +301,10 @@ function stopTimer() {
 
 function renderRecord() {
   recordedBlob = null;
+  recordedFileName = "recording.webm";
   recordedChunks = [];
   app.innerHTML = `
-    ${pageHead("Record a Voice", "Capture a clean sample, preview it, then save it as a reusable voice in My Voices.")}
+    ${pageHead("Record or Upload a Voice", "Capture a clean sample or upload an existing audio file, preview it, then save it as a reusable voice in My Voices.")}
     <div class="grid">
       <section class="panel recorder">
         <div>
@@ -301,9 +312,11 @@ function renderRecord() {
           <div class="timer" id="timer">00:00</div>
           <div class="row" style="justify-content:center">
             <button id="stopBtn" class="secondary" disabled>Stop</button>
-            <button id="resetBtn" class="secondary" disabled>Re-record</button>
+            <button id="resetBtn" class="secondary" disabled>Clear sample</button>
           </div>
           <p class="hint">Use a quiet room and speak naturally. Thirty seconds or more gives the model better material.</p>
+          <label style="text-align:left; margin-top:22px">Upload audio file</label>
+          <input id="audioUpload" type="file" accept=".wav,.mp3,.flac,.m4a,.ogg,.webm,audio/*" />
         </div>
       </section>
       <section class="panel">
@@ -327,6 +340,7 @@ function renderRecord() {
   document.getElementById("stopBtn").onclick = stopRecording;
   document.getElementById("resetBtn").onclick = resetRecording;
   document.getElementById("saveBtn").onclick = saveRecordedVoice;
+  document.getElementById("audioUpload").onchange = handleAudioUpload;
 }
 
 async function startRecording() {
@@ -339,6 +353,7 @@ async function startRecording() {
     };
     mediaRecorder.onstop = () => {
       recordedBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      recordedFileName = "recording.webm";
       stream.getTracks().forEach(track => track.stop());
       const preview = document.getElementById("preview");
       preview.src = URL.createObjectURL(recordedBlob);
@@ -357,10 +372,30 @@ async function startRecording() {
     document.getElementById("recordBtn").disabled = true;
     document.getElementById("recordBtn").classList.add("recording");
     document.getElementById("stopBtn").disabled = false;
+    document.getElementById("audioUpload").disabled = true;
     setStatus("recordStatus", "Recording...");
   } catch (e) {
     setStatus("recordStatus", `Microphone unavailable: ${e.message}`, "err");
   }
+}
+
+function handleAudioUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    stopRecording();
+  }
+  recordedBlob = file;
+  recordedFileName = file.name || "uploaded-audio";
+  recordedChunks = [];
+  seconds = 0;
+  document.getElementById("timer").textContent = "00:00";
+  const preview = document.getElementById("preview");
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = "block";
+  document.getElementById("saveBtn").disabled = false;
+  document.getElementById("resetBtn").disabled = false;
+  setStatus("recordStatus", `Uploaded "${recordedFileName}" and ready to save.`, "ok");
 }
 
 function stopRecording() {
@@ -369,14 +404,18 @@ function stopRecording() {
   document.getElementById("recordBtn").disabled = false;
   document.getElementById("recordBtn").classList.remove("recording");
   document.getElementById("stopBtn").disabled = true;
+  document.getElementById("audioUpload").disabled = false;
 }
 
 function resetRecording() {
   recordedBlob = null;
+  recordedFileName = "recording.webm";
   recordedChunks = [];
   seconds = 0;
   document.getElementById("timer").textContent = "00:00";
   document.getElementById("preview").style.display = "none";
+  document.getElementById("audioUpload").value = "";
+  document.getElementById("audioUpload").disabled = false;
   document.getElementById("saveBtn").disabled = true;
   document.getElementById("resetBtn").disabled = true;
   setStatus("recordStatus", "Ready for a fresh take.");
@@ -386,13 +425,13 @@ async function saveRecordedVoice() {
   const name = document.getElementById("voiceName").value.trim();
   const consent = document.getElementById("consent").checked;
   if (!recordedBlob || !name || !consent) {
-    setStatus("recordStatus", "Record audio, add a name, and confirm consent.", "err");
+    setStatus("recordStatus", "Record or upload audio, add a name, and confirm consent.", "err");
     return;
   }
   const form = new FormData();
   form.append("name", name);
   form.append("consent_confirmed", "true");
-  form.append("audio", recordedBlob, "recording.webm");
+  form.append("audio", recordedBlob, recordedFileName);
   document.getElementById("saveBtn").disabled = true;
   setStatus("recordStatus", "Saving voice and computing speaker profile...");
   try {
