@@ -23,6 +23,8 @@ import torch
 from TTS.api import TTS
 from pydub import AudioSegment
 import numpy as np
+import librosa
+import soundfile as sf
 
 from chunking import chunk_text
 
@@ -32,6 +34,7 @@ _MODEL_NAME = os.getenv("MODEL_NAME", "tts_models/multilingual/multi-dataset/xtt
 _device = os.getenv("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
 
 _tts_instance = None
+_xtts_audio_loader_patched = False
 
 # Silence gap to insert between chunks (milliseconds).
 # 300ms sounds natural for most prose; adjust per taste.
@@ -41,10 +44,44 @@ CHUNK_SILENCE_MS = 300
 MAX_RETRIES_PER_CHUNK = 1
 
 
+def _patch_xtts_audio_loader():
+    """
+    Newer torchaudio releases route torchaudio.load through TorchCodec.
+    On Windows that can fail if TorchCodec cannot load matching FFmpeg DLLs.
+    XTTS only needs local waveform loading here, so use soundfile/librosa.
+    """
+    global _xtts_audio_loader_patched
+    if _xtts_audio_loader_patched:
+        return
+
+    from TTS.tts.models import xtts as xtts_model
+
+    def load_audio_without_torchcodec(audiopath, sampling_rate):
+        audio, source_sr = sf.read(audiopath, dtype="float32", always_2d=True)
+        audio = audio.T
+
+        if audio.shape[0] != 1:
+            audio = np.mean(audio, axis=0, keepdims=True)
+
+        if source_sr != sampling_rate:
+            audio = np.vstack([
+                librosa.resample(channel, orig_sr=source_sr, target_sr=sampling_rate)
+                for channel in audio
+            ])
+
+        tensor = torch.from_numpy(audio).float()
+        tensor.clamp_(-1, 1)
+        return tensor
+
+    xtts_model.load_audio = load_audio_without_torchcodec
+    _xtts_audio_loader_patched = True
+
+
 def get_tts():
     """Lazy-load the model once (it's a few GB - don't reload per request)."""
     global _tts_instance
     if _tts_instance is None:
+        _patch_xtts_audio_loader()
         _tts_instance = TTS(_MODEL_NAME).to(_device)
     return _tts_instance
 

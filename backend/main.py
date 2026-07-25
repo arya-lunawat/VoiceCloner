@@ -55,8 +55,8 @@ def startup_checks():
             "or 'conda install -c conda-forge ffmpeg' (conda). "
             "The app cannot convert uploaded audio without it."
         )
-    # Loads XTTS v2 once at startup instead of on first request.
-    tts_engine.get_tts()
+    if os.getenv("PRELOAD_TTS", "0") == "1":
+        tts_engine.get_tts()
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -27,4 +27,3 @@ TTS==0.22.0
 
 # Simple watermarking / metadata tagging
 mutagen==1.48.1
-
