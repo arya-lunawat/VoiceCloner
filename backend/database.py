@@ -21,8 +21,10 @@ def init_db():
                 consent_confirmed INTEGER NOT NULL DEFAULT 0,
                 source_files TEXT NOT NULL,          -- JSON list of processed sample paths
                 embedding_path TEXT,                  -- path to saved speaker latents (.pt)
+                recording_path TEXT,                  -- original browser recording, if any
                 created_at TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'processing'  -- processing | ready | failed
+                status TEXT NOT NULL DEFAULT 'processing', -- processing | ready | failed
+                is_saved INTEGER NOT NULL DEFAULT 0
             )
         """)
         conn.execute("""
@@ -33,10 +35,24 @@ def init_db():
                 audio_path TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 is_favorite INTEGER NOT NULL DEFAULT 0,
+                is_saved INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (voice_profile_id) REFERENCES voice_profiles (id)
             )
         """)
+        _ensure_column(conn, "voice_profiles", "recording_path", "TEXT")
+        _ensure_column(conn, "voice_profiles", "is_saved", "INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(conn, "generations", "is_saved", "INTEGER NOT NULL DEFAULT 0")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_profiles_saved ON voice_profiles(is_saved)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_profiles_status ON voice_profiles(status)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_generations_saved ON generations(is_saved)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_generations_voice_profile ON generations(voice_profile_id)")
         conn.commit()
+
+
+def _ensure_column(conn, table: str, column: str, ddl: str) -> None:
+    columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
 
 @contextmanager

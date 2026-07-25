@@ -3,267 +3,462 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Voice Clone Console</title>
+<title>Voice Clone Studio</title>
 <style>
   :root {
-    --bg: #14181a;
-    --panel: #1c2224;
-    --panel-raised: #232a2c;
-    --line: #303839;
-    --text: #e7ece9;
-    --muted: #8ba39a;
-    --amber: #e8a13a;
-    --teal: #4fb8a8;
-    --danger: #d9695a;
+    --bg: #111414;
+    --surface: #181d1d;
+    --surface-2: #202727;
+    --line: #31403d;
+    --text: #edf3ef;
+    --muted: #9aada6;
+    --teal: #55c3b3;
+    --amber: #ebb65b;
+    --rose: #db746a;
+    --ink: #071c19;
     --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
-    --sans: "IBM Plex Sans", -apple-system, sans-serif;
+    --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
+    min-height: 100vh;
     background: var(--bg);
     color: var(--text);
     font-family: var(--sans);
-    min-height: 100vh;
-  }
-  .rail {
-    position: fixed; top:0; left:0; bottom:0; width:6px;
-    background: repeating-linear-gradient(180deg, var(--amber) 0 2px, transparent 2px 8px);
-    opacity: .5;
   }
   header {
-    padding: 28px 32px 18px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px 28px;
     border-bottom: 1px solid var(--line);
+    background: rgba(17, 20, 20, .94);
+    position: sticky;
+    top: 0;
+    z-index: 4;
   }
-  header .eyebrow {
-    font-family: var(--mono); font-size: 12px; letter-spacing: .12em;
-    color: var(--teal); text-transform: uppercase;
-  }
-  header h1 {
-    margin: 6px 0 0; font-size: 26px; font-weight: 600; letter-spacing: -0.01em;
-  }
-  .wrap {
-    max-width: 920px; margin: 0 auto; padding: 32px 24px 80px;
-  }
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 22px 24px;
-    margin-bottom: 22px;
-  }
-  .panel h2 {
-    font-family: var(--mono); font-size: 13px; letter-spacing: .08em;
-    text-transform: uppercase; color: var(--muted); margin: 0 0 16px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .panel h2 .n {
-    color: var(--amber); font-weight: 700;
-  }
-  label { display:block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-  input[type=text], textarea, select {
-    width: 100%; background: var(--panel-raised); border: 1px solid var(--line);
-    color: var(--text); border-radius: 6px; padding: 10px 12px; font-family: var(--sans);
-    font-size: 14px; margin-bottom: 14px;
-  }
-  textarea { min-height: 110px; resize: vertical; }
-  input[type=file] { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
-  .row { display:flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-  .check { display:flex; align-items:flex-start; gap: 10px; margin: 4px 0 16px; }
-  .check input { margin-top: 3px; }
-  .check span { font-size: 13px; color: var(--muted); line-height: 1.5; }
-  button {
-    background: var(--teal); color: #08211c; border: none; border-radius: 6px;
-    padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer;
-    font-family: var(--sans);
-  }
-  button.secondary { background: transparent; border: 1px solid var(--line); color: var(--text); }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  .status { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 10px; white-space: pre-wrap; }
-  .status.err { color: var(--danger); }
-  .status.ok { color: var(--teal); }
-  select#voiceSelect { margin-bottom: 8px; }
-  audio { width: 100%; margin-top: 12px; }
-  /* Progress bar for long-form generation */
-  .progress-wrap {
-    margin-top: 12px;
-    display: none;
-  }
-  .progress-bar {
-    width: 100%;
-    height: 8px;
-    background: var(--line);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%;
-    width: 0%;
-    background: var(--teal);
-    border-radius: 4px;
-    transition: width 0.3s ease;
-  }
-  .progress-label {
-    font-family: var(--mono);
-    font-size: 11px;
+  .brand h1 { margin: 0; font-size: 22px; font-weight: 650; }
+  .brand span {
+    display: block;
     color: var(--muted);
-    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    margin-top: 4px;
   }
-  .voice-list { font-family: var(--mono); font-size: 13px; }
-  .voice-list .row { justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
-  .voice-list .row:last-child { border-bottom: none; }
-  footer { text-align:center; color: var(--muted); font-size: 12px; padding: 30px 0 10px; }
+  nav { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  nav a.active {
+    color: var(--text);
+    background: var(--surface-2);
+    border-color: var(--line);
+  }
+  main {
+    width: min(1100px, calc(100% - 36px));
+    margin: 0 auto;
+    padding: 30px 0 80px;
+  }
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: end;
+    margin-bottom: 20px;
+  }
+  .page-head h2 { margin: 0; font-size: 28px; font-weight: 650; }
+  .page-head p { margin: 7px 0 0; color: var(--muted); line-height: 1.45; max-width: 680px; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .stack { display: grid; gap: 18px; }
+  .panel, .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 7px; }
+  input[type=text], textarea, select {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 7px;
+    padding: 11px 12px;
+    font: 14px var(--sans);
+    margin-bottom: 14px;
+  }
+  textarea { min-height: 210px; resize: vertical; line-height: 1.5; }
+  button, .button {
+    border: 0;
+    border-radius: 7px;
+    padding: 11px 15px;
+    background: var(--teal);
+    color: var(--ink);
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 40px;
+  }
+  button.secondary, .button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--line);
+  }
+  button.danger { background: var(--rose); color: #220806; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .space { justify-content: space-between; }
+  .status {
+    min-height: 18px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    white-space: pre-wrap;
+    margin-top: 10px;
+  }
+  .status.ok { color: var(--teal); }
+  .status.err { color: var(--rose); }
+  .recorder {
+    display: grid;
+    place-items: center;
+    min-height: 360px;
+    text-align: center;
+  }
+  .mic {
+    width: 136px;
+    height: 136px;
+    border-radius: 50%;
+    font-size: 46px;
+    margin-bottom: 18px;
+    border: 1px solid rgba(85, 195, 179, .3);
+  }
+  .mic.recording {
+    background: var(--rose);
+    animation: pulse 1.1s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(219, 116, 106, .48); }
+    100% { box-shadow: 0 0 0 22px rgba(219, 116, 106, 0); }
+  }
+  .timer { font: 42px var(--mono); margin-bottom: 18px; }
+  .hint { color: var(--muted); line-height: 1.5; }
+  audio { width: 100%; margin-top: 12px; }
+  .progress-wrap { display: none; margin-top: 14px; }
+  .progress-bar { height: 9px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: var(--amber); transition: width .25s ease; }
+  .progress-label { color: var(--muted); font: 12px var(--mono); margin-top: 7px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+  .card h3 { margin: 0 0 8px; font-size: 18px; }
+  .meta { color: var(--muted); font: 12px var(--mono); margin-bottom: 12px; }
+  .excerpt {
+    color: var(--muted);
+    line-height: 1.5;
+    max-height: 72px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .empty {
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 28px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .check { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 13px; line-height: 1.45; margin-bottom: 14px; }
+  .check input { margin-top: 2px; }
+  footer { color: var(--muted); text-align: center; font-size: 12px; padding: 20px; }
+  @media (max-width: 760px) {
+    header { align-items: flex-start; flex-direction: column; }
+    nav { width: 100%; justify-content: stretch; }
+    nav a { flex: 1; justify-content: center; }
+    .grid { grid-template-columns: 1fr; }
+    .page-head { display: block; }
+    main { width: min(100% - 24px, 1100px); padding-top: 22px; }
+  }
 </style>
 </head>
 <body>
-<div class="rail"></div>
 <header>
-  <div class="eyebrow">Local · Self-hosted · Free stack</div>
-  <h1>Voice Clone Console</h1>
+  <div class="brand">
+    <h1>Voice Clone Studio</h1>
+    <span>Local XTTS workflow - SQLite library - browser recording</span>
+  </div>
+  <nav id="nav"></nav>
 </header>
-
-<div class="wrap">
-
-  <div class="panel">
-    <h2><span class="n">01</span> Upload voice samples</h2>
-    <label>Profile name</label>
-    <input type="text" id="profileName" placeholder="e.g. My Voice" />
-    <label>Recordings (wav / mp3 / flac / m4a — 30s+ recommended, more is better)</label>
-    <input type="file" id="fileInput" multiple accept=".wav,.mp3,.flac,.m4a" />
-    <div class="check">
-      <input type="checkbox" id="consent" />
-      <span>I confirm I have the legal right to clone this voice (it's my own voice, or I have the speaker's explicit consent), and I will not use generated audio to impersonate anyone without consent.</span>
-    </div>
-    <button id="uploadBtn">Upload &amp; preprocess</button>
-    <div class="status" id="uploadStatus"></div>
-  </div>
-
-  <div class="panel">
-    <h2><span class="n">02</span> Build voice profile</h2>
-    <div class="row">
-      <button id="buildBtn" class="secondary" disabled>Create voice profile from latest upload</button>
-    </div>
-    <div class="status" id="buildStatus"></div>
-  </div>
-
-  <div class="panel">
-    <h2><span class="n">03</span> Generate speech</h2>
-    <label>Voice</label>
-    <select id="voiceSelect"></select>
-    <label>Script</label>
-    <textarea id="scriptText" placeholder="Type or paste any text to speak in the cloned voice...&#10;&#10;Long text (entire chapters, articles, etc.) is automatically chunked and processed sequentially. Progress will be shown below."></textarea>
-    <button id="generateBtn">Generate audio</button>
-    <div class="status" id="generateStatus"></div>
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-label" id="progressLabel"></div>
-    </div>
-    <audio id="player" controls style="display:none"></audio>
-  </div>
-
-  <div class="panel">
-    <h2><span class="n">04</span> My voices</h2>
-    <div class="voice-list" id="voiceList">— none yet —</div>
-  </div>
-
-</div>
-
-<footer>Runs entirely on your own machine · XTTS v2 (Coqui, CPML license) · SQLite · local storage</footer>
+<main id="app"></main>
+<footer>Runs on your machine with FastAPI, XTTS v2, SQLite, and local file storage.</footer>
 
 <script>
-const API = "http://localhost:8000"; // point to FastAPI backend
+const API = "http://localhost:8000";
+const app = document.getElementById("app");
+const nav = document.getElementById("nav");
 
-let lastProfileId = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordedBlob = null;
+let timerId = null;
+let seconds = 0;
 
-async function refreshVoices() {
-  const res = await fetch(API + "/voices");
-  const voices = await res.json();
-  const list = document.getElementById("voiceList");
-  const select = document.getElementById("voiceSelect");
-  select.innerHTML = "";
-  if (voices.length === 0) {
-    list.innerHTML = "— none yet —";
-  } else {
-    list.innerHTML = voices.map(v =>
-      `<div class="row"><span>${v.name}</span><span>${v.status}</span></div>`
-    ).join("");
-  }
-  voices.filter(v => v.status === "ready").forEach(v => {
-    const opt = document.createElement("option");
-    opt.value = v.id;
-    opt.textContent = v.name;
-    select.appendChild(opt);
-  });
+const routes = {
+  record: renderRecord,
+  create: renderCreate,
+  voices: renderVoices,
+  library: renderLibrary,
+};
+
+const navItems = [
+  ["record", "Mic", "Record"],
+  ["create", "Spark", "Create"],
+  ["voices", "Voices", "My Voices"],
+  ["library", "Library", "Library"],
+];
+
+function icon(name) {
+  const paths = {
+    Mic: '<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M8 21h8"/>',
+    Spark: '<path d="m12 3 2.6 5.4L20 11l-5.4 2.6L12 19l-2.6-5.4L4 11l5.4-2.6Z"/>',
+    Voices: '<path d="M16 11a4 4 0 1 0-8 0"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 8a3 3 0 0 1 0 6"/>',
+    Library: '<path d="M4 4h6a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H4Z"/><path d="M20 4h-6a3 3 0 0 0-3 3v13a3 3 0 0 1 3-3h6Z"/>',
+  };
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
 }
 
-document.getElementById("uploadBtn").onclick = async () => {
-  const name = document.getElementById("profileName").value.trim();
-  const consent = document.getElementById("consent").checked;
-  const files = document.getElementById("fileInput").files;
-  const statusEl = document.getElementById("uploadStatus");
+function setStatus(id, message, kind = "") {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = message;
+  el.className = `status ${kind}`.trim();
+}
 
-  if (!name || files.length === 0 || !consent) {
-    statusEl.textContent = "Add a name, at least one file, and confirm consent.";
-    statusEl.className = "status err";
+async function apiFetch(path, options = {}) {
+  const res = await fetch(API + path, options);
+  const type = res.headers.get("content-type") || "";
+  const data = type.includes("application/json") ? await res.json() : await res.text();
+  if (!res.ok) {
+    const detail = data && data.detail ? data.detail : data;
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+  }
+  return data;
+}
+
+function renderNav(current) {
+  nav.innerHTML = navItems.map(([route, iconName, label]) =>
+    `<a href="#${route}" class="${route === current ? "active" : ""}">${icon(iconName)}<span>${label}</span></a>`
+  ).join("");
+}
+
+function router() {
+  stopTimer();
+  const hash = window.location.hash.slice(1) || "record";
+  const [page, queryString = ""] = hash.split("?");
+  const route = routes[page] ? page : "record";
+  renderNav(route);
+  routes[route](new URLSearchParams(queryString));
+}
+
+function pageHead(title, copy, action = "") {
+  return `<div class="page-head"><div><h2>${title}</h2><p>${copy}</p></div>${action}</div>`;
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleString() : "Unknown date";
+}
+
+function formatTime(total) {
+  const m = String(Math.floor(total / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function stopTimer() {
+  if (timerId) clearInterval(timerId);
+  timerId = null;
+}
+
+function renderRecord() {
+  recordedBlob = null;
+  recordedChunks = [];
+  app.innerHTML = `
+    ${pageHead("Record a Voice", "Capture a clean sample, preview it, then save it as a reusable voice in My Voices.")}
+    <div class="grid">
+      <section class="panel recorder">
+        <div>
+          <button class="mic" id="recordBtn" title="Start recording">${icon("Mic")}</button>
+          <div class="timer" id="timer">00:00</div>
+          <div class="row" style="justify-content:center">
+            <button id="stopBtn" class="secondary" disabled>Stop</button>
+            <button id="resetBtn" class="secondary" disabled>Re-record</button>
+          </div>
+          <p class="hint">Use a quiet room and speak naturally. Thirty seconds or more gives the model better material.</p>
+        </div>
+      </section>
+      <section class="panel">
+        <label>Voice name</label>
+        <input id="voiceName" type="text" placeholder="e.g. My narration voice" />
+        <div class="check">
+          <input type="checkbox" id="consent" />
+          <span>I confirm I have the right to clone this voice and will not use generated audio to impersonate anyone without consent.</span>
+        </div>
+        <audio id="preview" controls style="display:none"></audio>
+        <div class="row">
+          <button id="saveBtn" disabled>Save Created Voice</button>
+          <a href="#voices" class="button secondary">My Voices</a>
+        </div>
+        <div class="status" id="recordStatus"></div>
+      </section>
+    </div>
+  `;
+
+  document.getElementById("recordBtn").onclick = startRecording;
+  document.getElementById("stopBtn").onclick = stopRecording;
+  document.getElementById("resetBtn").onclick = resetRecording;
+  document.getElementById("saveBtn").onclick = saveRecordedVoice;
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = event => {
+      if (event.data.size > 0) recordedChunks.push(event.data);
+    };
+    mediaRecorder.onstop = () => {
+      recordedBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      stream.getTracks().forEach(track => track.stop());
+      const preview = document.getElementById("preview");
+      preview.src = URL.createObjectURL(recordedBlob);
+      preview.style.display = "block";
+      document.getElementById("saveBtn").disabled = false;
+      document.getElementById("resetBtn").disabled = false;
+      setStatus("recordStatus", "Recording ready to save.", "ok");
+    };
+    mediaRecorder.start();
+    seconds = 0;
+    document.getElementById("timer").textContent = formatTime(seconds);
+    timerId = setInterval(() => {
+      seconds += 1;
+      document.getElementById("timer").textContent = formatTime(seconds);
+    }, 1000);
+    document.getElementById("recordBtn").disabled = true;
+    document.getElementById("recordBtn").classList.add("recording");
+    document.getElementById("stopBtn").disabled = false;
+    setStatus("recordStatus", "Recording...");
+  } catch (e) {
+    setStatus("recordStatus", `Microphone unavailable: ${e.message}`, "err");
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+  stopTimer();
+  document.getElementById("recordBtn").disabled = false;
+  document.getElementById("recordBtn").classList.remove("recording");
+  document.getElementById("stopBtn").disabled = true;
+}
+
+function resetRecording() {
+  recordedBlob = null;
+  recordedChunks = [];
+  seconds = 0;
+  document.getElementById("timer").textContent = "00:00";
+  document.getElementById("preview").style.display = "none";
+  document.getElementById("saveBtn").disabled = true;
+  document.getElementById("resetBtn").disabled = true;
+  setStatus("recordStatus", "Ready for a fresh take.");
+}
+
+async function saveRecordedVoice() {
+  const name = document.getElementById("voiceName").value.trim();
+  const consent = document.getElementById("consent").checked;
+  if (!recordedBlob || !name || !consent) {
+    setStatus("recordStatus", "Record audio, add a name, and confirm consent.", "err");
     return;
   }
-
   const form = new FormData();
   form.append("name", name);
   form.append("consent_confirmed", "true");
-  for (const f of files) form.append("files", f);
+  form.append("audio", recordedBlob, "recording.webm");
+  document.getElementById("saveBtn").disabled = true;
+  setStatus("recordStatus", "Saving voice and computing speaker profile...");
+  try {
+    await apiFetch("/voice-profiles", { method: "POST", body: form });
+    setStatus("recordStatus", "Voice saved to My Voices.", "ok");
+    window.location.hash = "voices";
+  } catch (e) {
+    document.getElementById("saveBtn").disabled = false;
+    setStatus("recordStatus", `Failed: ${e.message}`, "err");
+  }
+}
 
-  statusEl.textContent = "Uploading + preprocessing (noise removal, trimming, VAD)...";
-  statusEl.className = "status";
+async function renderCreate(params) {
+  const preselect = params.get("voice") || "";
+  app.innerHTML = `
+    ${pageHead("Create Audio", "Choose a saved voice, type your script, generate speech, then download or save it to the library.")}
+    <div class="grid">
+      <section class="panel">
+        <label>Voice</label>
+        <select id="voiceSelect"></select>
+        <label>Script</label>
+        <textarea id="scriptText" placeholder="Type or paste the text you want spoken..."></textarea>
+        <div class="check">
+          <input type="checkbox" id="saveToLibrary" checked />
+          <span>Save completed generation to My Library.</span>
+        </div>
+        <button id="generateBtn">Generate Voice</button>
+        <div class="status" id="generateStatus"></div>
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-label" id="progressLabel"></div>
+        </div>
+      </section>
+      <section class="panel">
+        <h3 style="margin-top:0">Result</h3>
+        <audio id="player" controls style="display:none"></audio>
+        <div class="row" id="downloadRow" style="display:none; margin-top:14px">
+          <a id="downloadWav" class="button" download>Download WAV</a>
+          <a id="downloadMp3" class="button secondary" download>Download MP3</a>
+          <button id="saveGenerationBtn" class="secondary" style="display:none">Save to Library</button>
+        </div>
+        <p class="hint">Generated audio appears here when processing finishes.</p>
+      </section>
+    </div>
+  `;
 
   try {
-    const res = await fetch(API + "/upload-voice", { method: "POST", body: form });
-    const data = await res.json();
-    if (!res.ok) throw new Error(JSON.stringify(data.detail));
-    lastProfileId = data.voice_profile_id;
-    statusEl.textContent = `Accepted ${data.accepted_samples} sample(s). Profile ID: ${lastProfileId}` +
-      (data.rejected_samples.length ? `\nRejected: ${JSON.stringify(data.rejected_samples)}` : "");
-    statusEl.className = "status ok";
-    document.getElementById("buildBtn").disabled = false;
+    const voices = await apiFetch("/voice-profiles?saved=true");
+    const ready = voices.filter(v => v.status === "ready");
+    const select = document.getElementById("voiceSelect");
+    select.innerHTML = ready.length
+      ? ready.map(v => `<option value="${v.id}">${escapeHtml(v.name)}</option>`).join("")
+      : `<option value="">No saved voices yet</option>`;
+    if (preselect) select.value = preselect;
+    document.getElementById("generateBtn").disabled = ready.length === 0;
   } catch (e) {
-    statusEl.textContent = "Failed: " + e.message;
-    statusEl.className = "status err";
+    setStatus("generateStatus", `Could not load voices: ${e.message}`, "err");
   }
-};
+  document.getElementById("generateBtn").onclick = generateVoice;
+}
 
-document.getElementById("buildBtn").onclick = async () => {
-  const statusEl = document.getElementById("buildStatus");
-  if (!lastProfileId) return;
-  statusEl.textContent = "Computing speaker embedding (this can take a minute)...";
-  statusEl.className = "status";
-  const form = new FormData();
-  form.append("voice_profile_id", lastProfileId);
-  try {
-    const res = await fetch(API + "/create-voice-profile", { method: "POST", body: form });
-    const data = await res.json();
-    if (!res.ok) throw new Error(JSON.stringify(data.detail));
-    statusEl.textContent = "Voice profile ready.";
-    statusEl.className = "status ok";
-    refreshVoices();
-  } catch (e) {
-    statusEl.textContent = "Failed: " + e.message;
-    statusEl.className = "status err";
-  }
-};
-
-document.getElementById("generateBtn").onclick = async () => {
+async function generateVoice() {
   const voiceId = document.getElementById("voiceSelect").value;
   const text = document.getElementById("scriptText").value.trim();
-  const statusEl = document.getElementById("generateStatus");
-  const player = document.getElementById("player");
-  const progressWrap = document.getElementById("progressWrap");
-  const progressFill = document.getElementById("progressFill");
-  const progressLabel = document.getElementById("progressLabel");
-  const generateBtn = document.getElementById("generateBtn");
-
   if (!voiceId || !text) {
-    statusEl.textContent = "Pick a voice and enter some text.";
-    statusEl.className = "status err";
+    setStatus("generateStatus", "Pick a voice and enter text.", "err");
     return;
   }
 
@@ -271,85 +466,143 @@ document.getElementById("generateBtn").onclick = async () => {
   form.append("voice_profile_id", voiceId);
   form.append("text", text);
   form.append("language", "en");
+  form.append("save_to_library", document.getElementById("saveToLibrary").checked ? "true" : "false");
 
-  // Reset UI
-  statusEl.textContent = "Starting generation...";
-  statusEl.className = "status";
-  player.style.display = "none";
-  progressWrap.style.display = "none";
+  const btn = document.getElementById("generateBtn");
+  const progressWrap = document.getElementById("progressWrap");
+  const progressFill = document.getElementById("progressFill");
+  const progressLabel = document.getElementById("progressLabel");
+  btn.disabled = true;
+  progressWrap.style.display = "block";
   progressFill.style.width = "0%";
-  generateBtn.disabled = true;
+  progressLabel.textContent = "Queued";
+  setStatus("generateStatus", "Starting generation...");
 
   try {
-    // 1. Start the job
-    const res = await fetch(API + "/generate-audio", { method: "POST", body: form });
-    const data = await res.json();
-    if (!res.ok) throw new Error(JSON.stringify(data.detail));
-
-    const jobId = data.job_id;
-    statusEl.textContent = "Job queued. Processing...";
-    progressWrap.style.display = "block";
-    progressLabel.textContent = "Initializing...";
-
-    // 2. Poll for status
-    let done = false;
-    while (!done) {
-      await new Promise(r => setTimeout(r, 1500)); // poll every 1.5s
-
-      const statusRes = await fetch(API + `/generate-audio/${jobId}/status`);
-      const statusData = await statusRes.json();
-      if (!statusRes.ok) throw new Error(JSON.stringify(statusData.detail));
-
-      // Update progress bar
-      const total = statusData.total_chunks;
-      const completed = statusData.completed_chunks;
-      if (total && total > 0) {
-        const pct = Math.min(100, Math.round((completed / total) * 100));
-        progressFill.style.width = pct + "%";
-        progressLabel.textContent = `Chunk ${completed} of ${total} (${pct}%)`;
+    const started = await apiFetch("/generations", { method: "POST", body: form });
+    let generationId = null;
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const status = await apiFetch(`/generations/${started.job_id}/status`);
+      const total = status.total_chunks || 0;
+      const done = status.completed_chunks || 0;
+      if (total > 0) {
+        const pct = Math.min(100, Math.round((done / total) * 100));
+        progressFill.style.width = `${pct}%`;
+        progressLabel.textContent = `Chunk ${done} of ${total} (${pct}%)`;
       } else {
-        progressLabel.textContent = statusData.progress || "Processing...";
+        progressLabel.textContent = status.progress || "Processing";
       }
-
-      statusEl.textContent = statusData.progress || "Processing...";
-
-      if (statusData.status === "completed") {
-        done = true;
-      } else if (statusData.status === "failed") {
-        throw new Error(statusData.error || "Generation failed");
+      setStatus("generateStatus", status.progress || "Processing...");
+      if (status.status === "completed") {
+        generationId = status.generation_id;
+        break;
       }
+      if (status.status === "failed") throw new Error(status.error || "Generation failed");
     }
 
-    // 3. Fetch the result audio
-    statusEl.textContent = "Loading audio...";
-    const resultRes = await fetch(API + `/generate-audio/${jobId}`);
-    if (!resultRes.ok) {
-      const errData = await resultRes.json();
-      throw new Error(JSON.stringify(errData.detail));
+    const wavUrl = `${API}/generations/${started.job_id}/audio?format=wav`;
+    const mp3Url = `${API}/generations/${started.job_id}/audio?format=mp3`;
+    document.getElementById("player").src = wavUrl;
+    document.getElementById("player").style.display = "block";
+    document.getElementById("downloadWav").href = wavUrl;
+    document.getElementById("downloadMp3").href = mp3Url;
+    document.getElementById("downloadRow").style.display = "flex";
+    if (!document.getElementById("saveToLibrary").checked && generationId) {
+      const saveBtn = document.getElementById("saveGenerationBtn");
+      saveBtn.style.display = "inline-flex";
+      saveBtn.onclick = async () => {
+        await apiFetch(`/generations/${generationId}/save`, { method: "POST" });
+        saveBtn.style.display = "none";
+      };
     }
-
-    // Create an object URL from the blob
-    const blob = await resultRes.blob();
-    const url = URL.createObjectURL(blob);
-    player.src = url;
-    player.style.display = "block";
-    player.play();
-
     progressFill.style.width = "100%";
-    progressLabel.textContent = "Done!";
-    statusEl.textContent = "Generation complete.";
-    statusEl.className = "status ok";
-
+    progressLabel.textContent = "Done";
+    setStatus("generateStatus", "Generation complete.", "ok");
   } catch (e) {
-    statusEl.textContent = "Failed: " + e.message;
-    statusEl.className = "status err";
+    setStatus("generateStatus", `Failed: ${e.message}`, "err");
     progressLabel.textContent = "Error";
   } finally {
-    generateBtn.disabled = false;
+    btn.disabled = false;
   }
-};
+}
 
-refreshVoices();
+async function renderVoices() {
+  app.innerHTML = `${pageHead("My Voices", "Saved voices are ready for reuse in the creator.", '<a class="button" href="#record">Record Voice</a>')}<div id="voicesRoot"></div>`;
+  const root = document.getElementById("voicesRoot");
+  try {
+    const voices = await apiFetch("/voice-profiles?saved=true");
+    if (!voices.length) {
+      root.innerHTML = `<div class="empty">No voices saved yet. <a href="#record">Record your first voice</a>.</div>`;
+      return;
+    }
+    root.innerHTML = `<div class="cards">${voices.map(v => `
+      <article class="card">
+        <h3>${escapeHtml(v.name)}</h3>
+        <div class="meta">${escapeHtml(v.status)} - ${formatDate(v.created_at)}</div>
+        <audio controls src="${API}/voice-profiles/${v.id}/recording"></audio>
+        <div class="row" style="margin-top:14px">
+          <a class="button" href="#create?voice=${v.id}">Use in Creator</a>
+          <button class="danger" data-delete-voice="${v.id}">Delete</button>
+        </div>
+      </article>
+    `).join("")}</div>`;
+    root.querySelectorAll("[data-delete-voice]").forEach(button => {
+      button.onclick = async () => {
+        button.disabled = true;
+        await apiFetch(`/voice-profiles/${button.dataset.deleteVoice}`, { method: "DELETE" });
+        renderVoices();
+      };
+    });
+  } catch (e) {
+    root.innerHTML = `<div class="status err">Failed: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function renderLibrary() {
+  app.innerHTML = `${pageHead("My Library", "Saved generations are collected here for replay and download.", '<a class="button" href="#create">Create Audio</a>')}<div id="libraryRoot"></div>`;
+  const root = document.getElementById("libraryRoot");
+  try {
+    const items = await apiFetch("/library");
+    if (!items.length) {
+      root.innerHTML = `<div class="empty">No saved generations yet. <a href="#create">Generate your first voice</a>.</div>`;
+      return;
+    }
+    root.innerHTML = `<div class="cards">${items.map(item => `
+      <article class="card">
+        <h3>${escapeHtml(item.voice_name || "Voice")}</h3>
+        <div class="meta">${formatDate(item.created_at)}</div>
+        <div class="excerpt">${escapeHtml(item.text)}</div>
+        <audio controls src="${API}/generations/${item.id}/audio?format=wav"></audio>
+        <div class="row" style="margin-top:14px">
+          <a class="button" href="${API}/generations/${item.id}/audio?format=mp3" download>Download MP3</a>
+          <button class="secondary" data-remove-generation="${item.id}">Remove</button>
+        </div>
+      </article>
+    `).join("")}</div>`;
+    root.querySelectorAll("[data-remove-generation]").forEach(button => {
+      button.onclick = async () => {
+        button.disabled = true;
+        await apiFetch(`/library/${button.dataset.removeGeneration}`, { method: "DELETE" });
+        renderLibrary();
+      };
+    });
+  } catch (e) {
+    root.innerHTML = `<div class="status err">Failed: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+window.addEventListener("hashchange", router);
+window.addEventListener("load", router);
 </script>
 </body>
 </html>
