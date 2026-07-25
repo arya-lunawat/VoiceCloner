@@ -4,28 +4,68 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Voice Clone Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #111414;
-    --surface: #181d1d;
-    --surface-2: #202727;
-    --line: #31403d;
-    --text: #edf3ef;
-    --muted: #9aada6;
-    --teal: #55c3b3;
-    --amber: #ebb65b;
-    --rose: #db746a;
-    --ink: #071c19;
+    --bg: #07090d;
+    --bg-2: #0b1117;
+    --surface: rgba(17, 25, 32, .72);
+    --surface-2: rgba(25, 36, 45, .78);
+    --surface-3: rgba(35, 51, 63, .64);
+    --glass: rgba(16, 26, 35, .58);
+    --line: rgba(116, 238, 226, .18);
+    --line-strong: rgba(136, 246, 234, .34);
+    --text: #f4fbff;
+    --muted: #9bb0bb;
+    --muted-2: #6f838f;
+    --teal: #38dfc4;
+    --cyan: #73d7ff;
+    --amber: #f5bd5d;
+    --violet: #a78bfa;
+    --rose: #ff7a86;
+    --ink: #03110f;
+    --shadow: 0 24px 80px rgba(0, 0, 0, .38);
+    --glow: 0 0 28px rgba(56, 223, 196, .24);
+    --display: "Space Grotesk", "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
     --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   * { box-sizing: border-box; }
+  html { color-scheme: dark; }
   body {
     margin: 0;
     min-height: 100vh;
-    background: var(--bg);
+    background:
+      radial-gradient(circle at 12% 8%, rgba(56, 223, 196, .14), transparent 28%),
+      radial-gradient(circle at 88% 12%, rgba(167, 139, 250, .14), transparent 26%),
+      radial-gradient(circle at 72% 86%, rgba(245, 189, 93, .11), transparent 30%),
+      linear-gradient(145deg, var(--bg), var(--bg-2) 52%, #080b12);
     color: var(--text);
     font-family: var(--sans);
+    overflow-x: hidden;
+  }
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+  }
+  body::before {
+    opacity: .15;
+    background-image:
+      linear-gradient(115deg, transparent 0 42%, rgba(115, 215, 255, .55) 43%, transparent 44% 100%),
+      linear-gradient(65deg, transparent 0 50%, rgba(56, 223, 196, .46) 51%, transparent 52% 100%),
+      linear-gradient(155deg, transparent 0 56%, rgba(167, 139, 250, .44) 57%, transparent 58% 100%);
+    background-size: 290px 210px, 360px 260px, 430px 280px;
+    animation: meshDrift 24s linear infinite;
+  }
+  body::after {
+    opacity: .18;
+    background-image: linear-gradient(rgba(244, 251, 255, .045) 1px, transparent 1px);
+    background-size: 100% 4px;
   }
   header {
     display: flex;
@@ -33,13 +73,20 @@
     justify-content: space-between;
     gap: 20px;
     padding: 22px 28px;
-    border-bottom: 1px solid var(--line);
-    background: rgba(17, 20, 20, .94);
+    border-bottom: 1px solid rgba(116, 238, 226, .16);
+    background: rgba(7, 10, 14, .72);
+    backdrop-filter: blur(18px);
     position: sticky;
     top: 0;
     z-index: 4;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, .24);
   }
-  .brand h1 { margin: 0; font-size: 22px; font-weight: 650; }
+  .brand h1 {
+    margin: 0;
+    font: 700 24px/1.05 var(--display);
+    letter-spacing: 0;
+    text-shadow: 0 0 30px rgba(115, 215, 255, .22);
+  }
   .brand span {
     display: block;
     color: var(--muted);
@@ -53,49 +100,96 @@
     text-decoration: none;
     border: 1px solid transparent;
     border-radius: 8px;
-    padding: 9px 12px;
+    padding: 10px 12px;
     font-size: 14px;
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    position: relative;
+    overflow: hidden;
+    transition: color .2s ease, border-color .2s ease, background .2s ease, transform .2s ease;
+  }
+  nav a:hover {
+    color: var(--text);
+    border-color: rgba(115, 215, 255, .22);
+    background: rgba(115, 215, 255, .06);
   }
   nav a.active {
     color: var(--text);
-    background: var(--surface-2);
-    border-color: var(--line);
+    background: linear-gradient(135deg, rgba(56, 223, 196, .18), rgba(167, 139, 250, .12));
+    border-color: var(--line-strong);
+    box-shadow: inset 0 0 22px rgba(56, 223, 196, .08), var(--glow);
+  }
+  nav a.active::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 5px;
+    height: 10px;
+    background:
+      linear-gradient(90deg, transparent 0 4%, var(--cyan) 4% 9%, transparent 9% 16%, var(--teal) 16% 25%, transparent 25% 31%, var(--amber) 31% 37%, transparent 37% 46%, var(--violet) 46% 54%, transparent 54% 100%);
+    opacity: .72;
+    filter: drop-shadow(0 0 7px rgba(115, 215, 255, .6));
   }
   main {
     width: min(1100px, calc(100% - 36px));
     margin: 0 auto;
-    padding: 30px 0 80px;
+    padding: 34px 0 82px;
   }
   .page-head {
     display: flex;
     justify-content: space-between;
     gap: 18px;
     align-items: end;
-    margin-bottom: 20px;
+    margin-bottom: 22px;
   }
-  .page-head h2 { margin: 0; font-size: 28px; font-weight: 650; }
+  .page-head h2 {
+    margin: 0;
+    font: 700 34px/1.08 var(--display);
+    letter-spacing: 0;
+  }
   .page-head p { margin: 7px 0 0; color: var(--muted); line-height: 1.45; max-width: 680px; }
   .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
   .stack { display: grid; gap: 18px; }
   .panel, .card {
-    background: var(--surface);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, .075), transparent 36%),
+      var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 20px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before, .card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(135deg, rgba(56, 223, 196, .16), transparent 28%, rgba(167, 139, 250, .1));
+    opacity: .54;
+  }
+  .panel > *, .card > * { position: relative; z-index: 1; }
+  .panel h3, .card h3 {
+    font-family: var(--display);
+    letter-spacing: 0;
   }
   label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 7px; }
   input[type=text], textarea, select {
     width: 100%;
-    background: var(--surface-2);
+    background: rgba(5, 12, 17, .62);
     border: 1px solid var(--line);
     color: var(--text);
     border-radius: 7px;
     padding: 11px 12px;
     font: 14px var(--sans);
     margin-bottom: 14px;
+    outline: 0;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
   }
   input[type=file] {
     width: 100%;
@@ -106,12 +200,17 @@
     padding: 10px;
     margin-bottom: 14px;
   }
+  input[type=text]:focus, textarea:focus, select:focus, input[type=file]:focus, input[type=checkbox]:focus-visible, button:focus-visible, .button:focus-visible, nav a:focus-visible, .file-button:focus-visible {
+    outline: 0;
+    border-color: rgba(115, 215, 255, .72);
+    box-shadow: 0 0 0 3px rgba(115, 215, 255, .14), 0 0 30px rgba(56, 223, 196, .16);
+  }
   textarea { min-height: 210px; resize: vertical; line-height: 1.5; }
   button, .button {
-    border: 0;
+    border: 1px solid rgba(115, 215, 255, .22);
     border-radius: 7px;
     padding: 11px 15px;
-    background: var(--teal);
+    background: linear-gradient(135deg, var(--teal), var(--cyan) 55%, var(--violet));
     color: var(--ink);
     font-weight: 700;
     cursor: pointer;
@@ -121,23 +220,35 @@
     justify-content: center;
     gap: 8px;
     min-height: 40px;
+    box-shadow: 0 10px 26px rgba(56, 223, 196, .18);
+    transition: transform .18s ease, box-shadow .18s ease, filter .18s ease, border-color .18s ease;
+  }
+  button:hover, .button:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow: 0 14px 34px rgba(56, 223, 196, .25);
   }
   button.secondary, .button.secondary {
-    background: transparent;
+    background: rgba(255, 255, 255, .045);
     color: var(--text);
     border: 1px solid var(--line);
+    box-shadow: none;
   }
-  button.danger { background: var(--rose); color: #220806; }
+  button.danger {
+    background: linear-gradient(135deg, var(--rose), #ffad7a);
+    color: #250608;
+    border-color: rgba(255, 122, 134, .42);
+  }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .file-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    border: 0;
+    border: 1px solid rgba(115, 215, 255, .22);
     border-radius: 7px;
     padding: 11px 15px;
-    background: var(--teal);
+    background: linear-gradient(135deg, var(--teal), var(--cyan) 58%, var(--violet));
     color: var(--ink);
     font-weight: 700;
     cursor: pointer;
@@ -145,8 +256,9 @@
     font-size: 14px;
     font-family: var(--sans);
     margin-bottom: 14px;
+    box-shadow: 0 10px 26px rgba(56, 223, 196, .18);
   }
-  .file-button:hover { opacity: .9; }
+  .file-button:hover { filter: brightness(1.06); }
   .file-name {
     color: var(--muted);
     font-size: 13px;
@@ -163,13 +275,17 @@
     white-space: pre-wrap;
     margin-top: 10px;
   }
-  .status.ok { color: var(--teal); }
-  .status.err { color: var(--rose); }
+  .status.ok { color: var(--teal); text-shadow: 0 0 18px rgba(56, 223, 196, .28); }
+  .status.err { color: var(--rose); text-shadow: 0 0 18px rgba(255, 122, 134, .2); }
   .recorder {
     display: grid;
     place-items: center;
     min-height: 360px;
     text-align: center;
+    background:
+      radial-gradient(circle at 50% 38%, rgba(56, 223, 196, .16), transparent 34%),
+      linear-gradient(145deg, rgba(255, 255, 255, .075), transparent 36%),
+      var(--surface);
   }
   .mic {
     width: 136px;
@@ -177,22 +293,56 @@
     border-radius: 50%;
     font-size: 46px;
     margin-bottom: 18px;
-    border: 1px solid rgba(85, 195, 179, .3);
+    border: 1px solid rgba(115, 215, 255, .38);
+    color: var(--text);
+    background:
+      radial-gradient(circle, rgba(244, 251, 255, .11), transparent 45%),
+      conic-gradient(from 180deg, rgba(56, 223, 196, .34), rgba(115, 215, 255, .18), rgba(167, 139, 250, .32), rgba(245, 189, 93, .18), rgba(56, 223, 196, .34));
+    box-shadow: inset 0 0 42px rgba(255, 255, 255, .07), 0 0 48px rgba(56, 223, 196, .22);
   }
   .mic.recording {
-    background: var(--rose);
+    background:
+      radial-gradient(circle, rgba(255, 255, 255, .16), transparent 45%),
+      conic-gradient(from 180deg, var(--rose), var(--amber), var(--teal), var(--rose));
     animation: pulse 1.1s infinite;
   }
   @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(219, 116, 106, .48); }
-    100% { box-shadow: 0 0 0 22px rgba(219, 116, 106, 0); }
+    0% { box-shadow: inset 0 0 42px rgba(255, 255, 255, .08), 0 0 0 0 rgba(255, 122, 134, .48); }
+    100% { box-shadow: inset 0 0 42px rgba(255, 255, 255, .08), 0 0 0 22px rgba(255, 122, 134, 0); }
   }
-  .timer { font: 42px var(--mono); margin-bottom: 18px; }
+  .timer {
+    font: 700 42px/1 var(--mono);
+    margin-bottom: 18px;
+    color: var(--cyan);
+    text-shadow: 0 0 24px rgba(115, 215, 255, .24);
+  }
   .hint { color: var(--muted); line-height: 1.5; }
-  audio { width: 100%; margin-top: 12px; }
+  audio {
+    width: 100%;
+    margin-top: 12px;
+    border-radius: 8px;
+    filter: drop-shadow(0 12px 22px rgba(0, 0, 0, .24));
+  }
   .progress-wrap { display: none; margin-top: 14px; }
-  .progress-bar { height: 9px; background: var(--line); border-radius: 999px; overflow: hidden; }
-  .progress-fill { height: 100%; width: 0%; background: var(--amber); transition: width .25s ease; }
+  .progress-bar {
+    height: 10px;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(116, 238, 226, .12);
+    border-radius: 999px;
+    overflow: hidden;
+    box-shadow: inset 0 0 12px rgba(0, 0, 0, .3);
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background:
+      linear-gradient(90deg, transparent, rgba(255, 255, 255, .46), transparent),
+      linear-gradient(90deg, var(--teal), var(--cyan), var(--amber));
+    background-size: 42px 100%, 100% 100%;
+    transition: width .25s ease;
+    animation: shimmer 1.2s linear infinite;
+    box-shadow: 0 0 18px rgba(115, 215, 255, .4);
+  }
   .progress-label { color: var(--muted); font: 12px var(--mono); margin-top: 7px; }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
   .card h3 { margin: 0 0 8px; font-size: 18px; }
@@ -210,16 +360,88 @@
     padding: 28px;
     color: var(--muted);
     text-align: center;
+    background: rgba(255, 255, 255, .035);
+    backdrop-filter: blur(14px);
+  }
+  .empty a { color: var(--cyan); }
+  .voice-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .voice-avatar {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    border: 1px solid rgba(115, 215, 255, .28);
+    box-shadow: 0 0 24px rgba(56, 223, 196, .18);
+    overflow: hidden;
+    background: rgba(255, 255, 255, .04);
+  }
+  .voice-card-head h3 { margin-bottom: 4px; }
+  .audio-shell {
+    border: 1px solid rgba(116, 238, 226, .16);
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(5, 12, 17, .5);
+  }
+  .wave-strip {
+    height: 32px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    background:
+      linear-gradient(90deg, transparent 0 4%, rgba(56, 223, 196, .75) 4% 6%, transparent 6% 12%, rgba(115, 215, 255, .62) 12% 15%, transparent 15% 21%, rgba(245, 189, 93, .62) 21% 23%, transparent 23% 30%, rgba(167, 139, 250, .72) 30% 33%, transparent 33% 100%);
+    background-size: 72px 100%;
+    opacity: .74;
+    animation: waveSlide 2.7s linear infinite;
   }
   .check { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 13px; line-height: 1.45; margin-bottom: 14px; }
-  .check input { margin-top: 2px; }
+  .check input { margin-top: 2px; accent-color: var(--teal); }
   footer { color: var(--muted); text-align: center; font-size: 12px; padding: 20px; }
+  .burst {
+    position: fixed;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 20;
+    background: var(--cyan);
+    box-shadow: 0 0 16px currentColor;
+    animation: burst .62s ease-out forwards;
+  }
+  @keyframes meshDrift {
+    from { background-position: 0 0, 0 0, 0 0; }
+    to { background-position: 290px 210px, -360px 260px, 430px -280px; }
+  }
+  @keyframes shimmer {
+    from { background-position: -42px 0, 0 0; }
+    to { background-position: 42px 0, 0 0; }
+  }
+  @keyframes waveSlide {
+    from { background-position: 0 0; }
+    to { background-position: 72px 0; }
+  }
+  @keyframes burst {
+    from { opacity: .95; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(.25); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: .001ms !important;
+    }
+  }
   @media (max-width: 760px) {
     header { align-items: flex-start; flex-direction: column; }
     nav { width: 100%; justify-content: stretch; }
     nav a { flex: 1; justify-content: center; }
     .grid { grid-template-columns: 1fr; }
     .page-head { display: block; }
+    .page-head h2 { font-size: 29px; }
     main { width: min(100% - 24px, 1100px); padding-top: 22px; }
   }
 </style>
@@ -306,6 +528,64 @@ function router() {
 
 function pageHead(title, copy, action = "") {
   return `<div class="page-head"><div><h2>${title}</h2><p>${copy}</p></div>${action}</div>`;
+}
+
+function hashString(value) {
+  return String(value ?? "").split("").reduce((hash, char) => {
+    return ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+  }, 0);
+}
+
+function voiceAvatar(id) {
+  const seed = Math.abs(hashString(id));
+  const colors = ["#38dfc4", "#73d7ff", "#f5bd5d", "#a78bfa"];
+  const stops = colors.map((color, index) => `<stop offset="${index * 33}%" stop-color="${color}" />`).join("");
+  const bars = Array.from({ length: 13 }, (_, index) => {
+    const height = 10 + ((seed >> (index % 8)) + index * 7) % 28;
+    const x = 16 + index * 5;
+    const y = 32 - height / 2;
+    return `<rect x="${x}" y="${y}" width="2.7" height="${height}" rx="1.35" />`;
+  }).join("");
+  return `
+    <svg class="voice-avatar" viewBox="0 0 88 88" role="img" aria-label="Voice waveform avatar">
+      <defs>
+        <linearGradient id="avatar-${seed}" x1="12" y1="12" x2="76" y2="76">${stops}</linearGradient>
+      </defs>
+      <circle cx="44" cy="44" r="40" fill="rgba(5, 12, 17, .78)" stroke="url(#avatar-${seed})" stroke-width="2" />
+      <circle cx="44" cy="44" r="29" fill="none" stroke="url(#avatar-${seed})" stroke-width="1" opacity=".42" />
+      <g fill="url(#avatar-${seed})">${bars}</g>
+    </svg>
+  `;
+}
+
+function audioShell(src, label = "Audio preview") {
+  return `
+    <div class="audio-shell" aria-label="${escapeHtml(label)}">
+      <div class="wave-strip" aria-hidden="true"></div>
+      <audio controls src="${escapeHtml(src)}"></audio>
+    </div>
+  `;
+}
+
+function particleBurst(source) {
+  if (!source || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const rect = source.getBoundingClientRect();
+  const originX = rect.left + rect.width / 2;
+  const originY = rect.top + rect.height / 2;
+  const colors = ["#38dfc4", "#73d7ff", "#f5bd5d", "#a78bfa", "#ff7a86"];
+  Array.from({ length: 18 }, (_, index) => {
+    const particle = document.createElement("span");
+    const angle = (Math.PI * 2 * index) / 18;
+    const distance = 42 + (index % 5) * 8;
+    particle.className = "burst";
+    particle.style.left = `${originX}px`;
+    particle.style.top = `${originY}px`;
+    particle.style.color = colors[index % colors.length];
+    particle.style.setProperty("--tx", `${Math.cos(angle) * distance}px`);
+    particle.style.setProperty("--ty", `${Math.sin(angle) * distance}px`);
+    document.body.appendChild(particle);
+    particle.addEventListener("animationend", () => particle.remove(), { once: true });
+  });
 }
 
 function formatDate(value) {
@@ -399,6 +679,7 @@ async function startRecording() {
     document.getElementById("recordBtn").classList.add("recording");
     document.getElementById("stopBtn").disabled = false;
     document.getElementById("audioUpload").disabled = true;
+    particleBurst(document.getElementById("recordBtn"));
     setStatus("recordStatus", "Recording...");
   } catch (e) {
     setStatus("recordStatus", `Microphone unavailable: ${e.message}`, "err");
@@ -432,6 +713,7 @@ function stopRecording() {
   document.getElementById("recordBtn").classList.remove("recording");
   document.getElementById("stopBtn").disabled = true;
   document.getElementById("audioUpload").disabled = false;
+  particleBurst(document.getElementById("recordBtn"));
 }
 
 function resetRecording() {
@@ -495,7 +777,12 @@ async function renderCreate(params) {
       </section>
       <section class="panel">
         <h3 style="margin-top:0">Result</h3>
-        <audio id="player" controls style="display:none"></audio>
+        <div id="playerShell" style="display:none">
+          <div class="audio-shell">
+            <div class="wave-strip" aria-hidden="true"></div>
+            <audio id="player" controls></audio>
+          </div>
+        </div>
         <div class="row" id="downloadRow" style="display:none; margin-top:14px">
           <a id="downloadWav" class="button" download>Download WAV</a>
           <a id="downloadMp3" class="button secondary" download>Download MP3</a>
@@ -571,7 +858,7 @@ async function generateVoice() {
     const wavUrl = `${API}/generations/${started.job_id}/audio?format=wav`;
     const mp3Url = `${API}/generations/${started.job_id}/audio?format=mp3`;
     document.getElementById("player").src = wavUrl;
-    document.getElementById("player").style.display = "block";
+    document.getElementById("playerShell").style.display = "block";
     document.getElementById("downloadWav").href = wavUrl;
     document.getElementById("downloadMp3").href = mp3Url;
     document.getElementById("downloadRow").style.display = "flex";
@@ -605,9 +892,14 @@ async function renderVoices() {
     }
     root.innerHTML = `<div class="cards">${voices.map(v => `
       <article class="card">
-        <h3>${escapeHtml(v.name)}</h3>
-        <div class="meta">${escapeHtml(v.status)} - ${formatDate(v.created_at)}</div>
-        <audio controls src="${API}/voice-profiles/${v.id}/recording"></audio>
+        <div class="voice-card-head">
+          ${voiceAvatar(v.id)}
+          <div>
+            <h3>${escapeHtml(v.name)}</h3>
+            <div class="meta">${escapeHtml(v.status)} - ${formatDate(v.created_at)}</div>
+          </div>
+        </div>
+        ${audioShell(`${API}/voice-profiles/${v.id}/recording`, `${v.name} source audio`)}
         <div class="row" style="margin-top:14px">
           <a class="button" href="#create?voice=${v.id}">Use in Creator</a>
           <button class="danger" data-delete-voice="${v.id}">Delete</button>
@@ -640,7 +932,7 @@ async function renderLibrary() {
         <h3>${escapeHtml(item.voice_name || "Voice")}</h3>
         <div class="meta">${formatDate(item.created_at)}</div>
         <div class="excerpt">${escapeHtml(item.text)}</div>
-        <audio controls src="${API}/generations/${item.id}/audio?format=wav"></audio>
+        ${audioShell(`${API}/generations/${item.id}/audio?format=wav`, `${item.voice_name || "Voice"} generated audio`)}
         <div class="row" style="margin-top:14px">
           <a class="button" href="${API}/generations/${item.id}/audio?format=mp3" download>Download MP3</a>
           <button class="secondary" data-remove-generation="${item.id}">Remove</button>
