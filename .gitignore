@@ -19,6 +19,7 @@ ENV/
 # Environment and secrets
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 *.crt

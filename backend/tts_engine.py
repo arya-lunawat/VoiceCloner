@@ -19,8 +19,6 @@ Long-form support:
 """
 import os
 import logging
-import torch
-from TTS.api import TTS
 from pydub import AudioSegment
 import numpy as np
 import librosa
@@ -31,7 +29,7 @@ from chunking import chunk_text
 logger = logging.getLogger(__name__)
 
 _MODEL_NAME = os.getenv("MODEL_NAME", "tts_models/multilingual/multi-dataset/xtts_v2")
-_device = os.getenv("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
+_device = os.getenv("DEVICE")
 
 _tts_instance = None
 _xtts_audio_loader_patched = False
@@ -54,6 +52,7 @@ def _patch_xtts_audio_loader():
     if _xtts_audio_loader_patched:
         return
 
+    import torch
     from TTS.tts.models import xtts as xtts_model
 
     def load_audio_without_torchcodec(audiopath, sampling_rate):
@@ -81,8 +80,12 @@ def get_tts():
     """Lazy-load the model once (it's a few GB - don't reload per request)."""
     global _tts_instance
     if _tts_instance is None:
+        import torch
+        from TTS.api import TTS
+
+        device = _device or ("cuda" if torch.cuda.is_available() else "cpu")
         _patch_xtts_audio_loader()
-        _tts_instance = TTS(_MODEL_NAME).to(_device)
+        _tts_instance = TTS(_MODEL_NAME).to(device)
     return _tts_instance
 
 
@@ -92,6 +95,8 @@ def compute_speaker_latents(reference_wav_paths: list[str], save_path: str) -> s
     reference clips. Saving this means we never need to reprocess the raw
     audio again for future generations - this IS the "voice profile".
     """
+    import torch
+
     tts = get_tts()
     gpt_cond_latent, speaker_embedding = tts.synthesizer.tts_model.get_conditioning_latents(
         audio_path=reference_wav_paths
@@ -116,6 +121,8 @@ def generate_speech(
     For short text, this works as a single call. For long text, it
     delegates to `generate_speech_long` which chunks and concatenates.
     """
+    import torch
+
     tts = get_tts()
     cached = torch.load(embedding_path)
 
@@ -164,6 +171,7 @@ def generate_speech_long(
     Raises:
         RuntimeError: If ALL chunks fail generation (no audio produced).
     """
+    import torch
     import soundfile as sf
     from io import BytesIO
 
