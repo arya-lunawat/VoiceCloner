@@ -376,16 +376,7 @@
     padding: 12px;
     background: rgba(5, 12, 17, .5);
   }
-  .wave-strip {
-    height: 32px;
-    margin-bottom: 8px;
-    border-radius: 6px;
-    background:
-      linear-gradient(90deg, transparent 0 4%, rgba(56, 223, 196, .75) 4% 6%, transparent 6% 12%, rgba(115, 215, 255, .62) 12% 15%, transparent 15% 21%, rgba(245, 189, 93, .62) 21% 23%, transparent 23% 30%, rgba(167, 139, 250, .72) 30% 33%, transparent 33% 100%);
-    background-size: 72px 100%;
-    opacity: .74;
-    animation: waveSlide 2.7s linear infinite;
-  }
+
   .check { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 13px; line-height: 1.45; margin-bottom: 14px; }
   .check input { margin-top: 2px; accent-color: var(--teal); }
   footer { color: var(--muted); text-align: center; font-size: 12px; padding: 20px; }
@@ -407,10 +398,6 @@
   @keyframes shimmer {
     from { background-position: -42px 0, 0 0; }
     to { background-position: 42px 0, 0 0; }
-  }
-  @keyframes waveSlide {
-    from { background-position: 0 0; }
-    to { background-position: 72px 0; }
   }
   @keyframes burst {
     from { opacity: .95; transform: translate(0, 0) scale(1); }
@@ -549,7 +536,6 @@ function voiceAvatar(id) {
 function audioShell(src, label = "Audio preview") {
   return `
     <div class="audio-shell" aria-label="${escapeHtml(label)}">
-      <div class="wave-strip" aria-hidden="true"></div>
       <audio controls src="${escapeHtml(src)}"></audio>
     </div>
   `;
