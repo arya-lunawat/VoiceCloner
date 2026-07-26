@@ -120,18 +120,7 @@
     border-color: var(--line-strong);
     box-shadow: inset 0 0 22px rgba(56, 223, 196, .08), var(--glow);
   }
-  nav a.active::after {
-    content: "";
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: 5px;
-    height: 10px;
-    background:
-      linear-gradient(90deg, transparent 0 4%, var(--cyan) 4% 9%, transparent 9% 16%, var(--teal) 16% 25%, transparent 25% 31%, var(--amber) 31% 37%, transparent 37% 46%, var(--violet) 46% 54%, transparent 54% 100%);
-    opacity: .72;
-    filter: drop-shadow(0 0 7px rgba(115, 215, 255, .6));
-  }
+  
   main {
     width: min(1100px, calc(100% - 36px));
     margin: 0 auto;
