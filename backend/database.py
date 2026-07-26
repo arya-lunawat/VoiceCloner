@@ -42,6 +42,7 @@ def init_db():
         _ensure_column(conn, "voice_profiles", "recording_path", "TEXT")
         _ensure_column(conn, "voice_profiles", "is_saved", "INTEGER NOT NULL DEFAULT 0")
         _ensure_column(conn, "generations", "is_saved", "INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(conn, "generations", "name", "TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_profiles_saved ON voice_profiles(is_saved)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_profiles_status ON voice_profiles(status)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_generations_saved ON generations(is_saved)")

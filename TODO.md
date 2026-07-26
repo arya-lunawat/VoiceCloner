@@ -1,12 +1,15 @@
-# Repo Cleanup & Polish — Progress
+# Library Rename & Custom Download Filename
 
-## Steps
+## Backend
+- [x] Add `name` column to `generations` table in `database.py`
+- [x] Update `_generate_in_background` in `main.py` to auto-generate a name from text
+- [x] Add `PATCH /library/{generation_id}` rename endpoint
+- [x] Update `GET /library` to return `name` field
+- [x] Update `_generation_audio_response()` to accept `display_name` for custom filename
+- [x] Update `GET /generations/{id}/audio` to pass `name` as download filename
 
-- [x] **Step 1**: Remove tracked duplicate folder (`voice-clone-app/`) and database (`backend/voice_clone.db`)
-- [x] **Step 2**: Update `.gitignore` comments
-- [x] **Step 3**: Pin dependencies in `requirements.txt`
-- [x] **Step 4**: Add real tests (preprocessing, chunking, API endpoints)
-- [x] **Step 5**: Add CI workflow (`.github/workflows/ci.yml`)
-- [x] **Step 6**: Update README with known limitations + metadata
-- [ ] **Step 7**: Commit all changes and push (waiting for user to review first)
+## Frontend
+- [x] Update `renderLibrary()` to show editable name with Rename button (inline input)
+- [x] Download MP3 button uses server-provided filename via Content-Disposition
+- [x] Rename API call (Save/Cancel) with PATCH request
 

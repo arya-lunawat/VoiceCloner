@@ -10,7 +10,7 @@ import shutil
 import threading
 import logging
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
+from fastapi import Body, FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -114,12 +114,17 @@ def _generate_in_background(
         # Tag the audio with metadata
         watermark.tag_generated_audio(out_path, generation_id, voice_profile_id, created_at)
 
+        # Auto-generate a name from the text
+        default_name = text.strip()[:50].replace("\n", " ").strip()
+        if len(text) > 50:
+            default_name += "…"
+
         # Record in database
         with db.get_conn() as conn:
             conn.execute(
-                "INSERT INTO generations (id, voice_profile_id, text, audio_path, created_at, is_favorite, is_saved) "
-                "VALUES (?, ?, ?, ?, ?, 0, ?)",
-                (generation_id, voice_profile_id, text, out_path, created_at, 1 if save_to_library else 0),
+                "INSERT INTO generations (id, voice_profile_id, text, audio_path, created_at, is_favorite, is_saved, name) "
+                "VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+                (generation_id, voice_profile_id, text, out_path, created_at, 1 if save_to_library else 0, default_name),
             )
             conn.commit()
 
@@ -558,18 +563,25 @@ async def get_generation_status_new(job_id: str):
     return response
 
 
-def _generation_audio_response(audio_path: str, file_id: str, format: str):
+def _generation_audio_response(audio_path: str, file_id: str, format: str, display_name: str | None = None):
     if not os.path.exists(audio_path):
         raise HTTPException(status_code=404, detail="Generated audio file not found.")
+
+    # Sanitize display name for safe filename
+    safe_name = file_id
+    if display_name:
+        safe_name = "".join(c if c.isalnum() or c in " _-." else "_" for c in display_name).strip()
+        if not safe_name:
+            safe_name = file_id
 
     if format == "mp3":
         mp3_path = os.path.splitext(audio_path)[0] + ".mp3"
         if not os.path.exists(mp3_path) or os.path.getmtime(mp3_path) < os.path.getmtime(audio_path):
             from pydub import AudioSegment
             AudioSegment.from_wav(audio_path).export(mp3_path, format="mp3")
-        return FileResponse(mp3_path, media_type="audio/mpeg", filename=f"{file_id}.mp3")
+        return FileResponse(mp3_path, media_type="audio/mpeg", filename=f"{safe_name}.mp3")
 
-    return FileResponse(audio_path, media_type="audio/wav", filename=f"{file_id}.wav")
+    return FileResponse(audio_path, media_type="audio/wav", filename=f"{safe_name}.wav")
 
 
 @app.get("/generations/{generation_or_job_id}/audio")
@@ -589,11 +601,11 @@ async def download_generation_audio(generation_or_job_id: str, format: str = Que
 
     with db.get_conn() as conn:
         row = conn.execute(
-            "SELECT audio_path FROM generations WHERE id = ?", (generation_or_job_id,)
+            "SELECT audio_path, name FROM generations WHERE id = ?", (generation_or_job_id,)
         ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Generation not found.")
-    return _generation_audio_response(row["audio_path"], generation_or_job_id, format)
+    return _generation_audio_response(row["audio_path"], generation_or_job_id, format, display_name=row["name"])
 
 
 @app.post("/generations/{generation_id}/save")
@@ -621,6 +633,7 @@ async def list_library():
                 generations.text,
                 generations.audio_path,
                 generations.created_at,
+                generations.name,
                 voice_profiles.name AS voice_name
             FROM generations
             JOIN voice_profiles ON voice_profiles.id = generations.voice_profile_id
@@ -640,6 +653,22 @@ async def remove_from_library(generation_id: str):
         conn.execute("UPDATE generations SET is_saved = 0 WHERE id = ?", (generation_id,))
         conn.commit()
     return {"removed": generation_id}
+
+
+@app.patch("/library/{generation_id}")
+async def rename_library_item(generation_id: str, data: dict = Body(...)):
+    name = data.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name cannot be empty.")
+    if len(name) > 255:
+        raise HTTPException(status_code=400, detail="Name too long (max 255 chars).")
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT id FROM generations WHERE id = ?", (generation_id,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Generation not found.")
+        conn.execute("UPDATE generations SET name = ? WHERE id = ?", (name, generation_id))
+        conn.commit()
+    return {"generation_id": generation_id, "name": name}
 
 
 @app.get("/generate-audio/{job_id}/status")

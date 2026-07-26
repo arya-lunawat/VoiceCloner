@@ -902,17 +902,73 @@ async function renderLibrary() {
       return;
     }
     root.innerHTML = `<div class="cards">${items.map(item => `
-      <article class="card">
-        <h3>${escapeHtml(item.voice_name || "Voice")}</h3>
+      <article class="card" data-generation-id="${escapeHtml(item.id)}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <h3 style="margin:0;flex:1" id="title-${escapeHtml(item.id)}">${escapeHtml(item.name || item.voice_name || "Voice")}</h3>
+          <button class="rename-btn" data-rename-id="${escapeHtml(item.id)}" style="background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;min-height:unset;box-shadow:none;font-family:var(--sans)">Rename</button>
+        </div>
+        <div id="rename-input-${escapeHtml(item.id)}" style="display:none;margin-bottom:10px;">
+          <div class="row">
+            <input type="text" id="rename-field-${escapeHtml(item.id)}" value="${escapeHtml(item.name || item.voice_name || "Voice")}" style="flex:1;margin-bottom:0" />
+            <button class="rename-save-btn" data-rename-id="${escapeHtml(item.id)}" style="padding:11px 12px;min-height:unset">Save</button>
+            <button class="rename-cancel-btn" data-rename-id="${escapeHtml(item.id)}" class="secondary" style="padding:11px 12px;min-height:unset;background:rgba(255,255,255,.045);color:var(--text);border:1px solid var(--line);box-shadow:none">Cancel</button>
+          </div>
+        </div>
         <div class="meta">${formatDate(item.created_at)}</div>
         <div class="excerpt">${escapeHtml(item.text)}</div>
-        ${audioShell(`${API}/generations/${item.id}/audio?format=wav`, `${item.voice_name || "Voice"} generated audio`)}
+        ${audioShell(`${API}/generations/${item.id}/audio?format=wav`, `${item.name || item.voice_name || "Voice"} generated audio`)}
         <div class="row" style="margin-top:14px">
-          <a class="button" href="${API}/generations/${item.id}/audio?format=mp3" download>Download MP3</a>
+          <a class="button" href="${API}/generations/${item.id}/audio?format=mp3">Download MP3</a>
           <button class="secondary" data-remove-generation="${item.id}">Remove</button>
         </div>
       </article>
     `).join("")}</div>`;
+
+    // Rename button click: show input
+    root.querySelectorAll(".rename-btn").forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.renameId;
+        document.getElementById(`title-${id}`).style.display = "none";
+        btn.style.display = "none";
+        document.getElementById(`rename-input-${id}`).style.display = "block";
+        document.getElementById(`rename-field-${id}`).focus();
+        document.getElementById(`rename-field-${id}`).select();
+      };
+    });
+
+    // Rename save
+    root.querySelectorAll(".rename-save-btn").forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.dataset.renameId;
+        const field = document.getElementById(`rename-field-${id}`);
+        const name = field.value.trim();
+        if (!name) return;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/library/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+          renderLibrary();
+        } catch (e) {
+          setStatus("libraryStatus", `Rename failed: ${e.message}`, "err");
+          btn.disabled = false;
+        }
+      };
+    });
+
+    // Rename cancel
+    root.querySelectorAll(".rename-cancel-btn").forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.renameId;
+        document.getElementById(`title-${id}`).style.display = "block";
+        document.querySelector(`.rename-btn[data-rename-id="${id}"]`).style.display = "";
+        document.getElementById(`rename-input-${id}`).style.display = "none";
+      };
+    });
+
+    // Remove
     root.querySelectorAll("[data-remove-generation]").forEach(button => {
       button.onclick = async () => {
         button.disabled = true;
