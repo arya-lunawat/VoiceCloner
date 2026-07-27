@@ -1,0 +1,6 @@
+# Test-only dependencies (not needed at runtime)
+# Installed separately from requirements.txt to keep prod image lean
+
+pytest>=8.0.0
+httpx>=0.27.0
+
