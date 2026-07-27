@@ -42,7 +42,7 @@ sudo apt-get install ffmpeg
 
 ### 2. Python environment
 ```bash
-cd voice-clone-app/backend
+cd backend
 python3 -m venv venv
 source venv/bin/activate       # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -60,14 +60,32 @@ uvicorn main:app --reload --port 8000
 
 Open **http://localhost:8000** — the frontend is served automatically.
 
+## API reference
+
+All routes are implemented in `backend/main.py`. The frontend only talks to
+this API — there is no other backend surface.
+
+| Route | Purpose |
+|---|---|
+| `POST /voice-profiles` | Upload/record a voice sample, preprocess it, and compute the reusable XTTS speaker embedding |
+| `GET /voice-profiles?saved=true` | List saved voice profiles |
+| `GET /voice-profiles/{id}/recording` | Stream back the original source recording |
+| `DELETE /voice-profiles/{id}` | Delete a voice profile and every file associated with it (recording, samples, embedding, and its generations) |
+| `POST /generations` | Start a (possibly long-form, chunked) text-to-speech generation job; returns a `job_id` immediately |
+| `GET /generations/{job_id}/status` | Poll job progress (`processing` / `completed` / `failed`) |
+| `GET /generations/{id}/audio?format=wav\|mp3` | Download/stream the generated audio, by job id or saved generation id |
+| `POST /generations/{id}/save` | Toggle whether a generation is kept in the library |
+| `GET /library` | List generations saved to the library |
+| `DELETE /library/{id}` | Remove a generation from the library |
+| `PATCH /library/{id}` | Rename a saved generation |
+
 ## How it maps to the original spec
 
 | Spec item | This MVP |
 |---|---|
-| `POST /upload-voice`, `/preprocess` | combined into one `/upload-voice` call that preprocesses inline |
-| `POST /create-voice-profile` | implemented — computes & caches XTTS speaker latents |
-| `POST /generate-audio`, `GET /audio/{id}` | implemented |
-| `DELETE /voice-profile/{id}`, `GET /voices` | implemented |
+| `POST /upload-voice`, `/preprocess`, `POST /create-voice-profile` | combined into one `POST /voice-profiles` call that preprocesses inline and computes the speaker embedding |
+| `POST /generate-audio`, `GET /audio/{id}` | `POST /generations` + `GET /generations/{id}/audio`, with async job polling and long-form chunking |
+| `DELETE /voice-profile/{id}`, `GET /voices` | `DELETE /voice-profiles/{id}` (also cleans up recordings/embeddings/generations on disk) and `GET /voice-profiles` |
 | PostgreSQL / Supabase | SQLite (swap-compatible schema, see `database.py`) |
 | S3 / R2 storage | local disk (swap for boto3/R2 client later, same file paths) |
 | Auth (Clerk/Auth.js/Firebase) | not included in MVP — add before any multi-user or public deployment |
