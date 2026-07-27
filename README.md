@@ -126,3 +126,4 @@ FastAPI, and SQLite. Zero-shot voice cloning, speech generation, ethical safegua
    your own machine.
 4. Add background job processing for long scripts / batch generation.
 5. Add speaker diarization to auto-reject multi-speaker uploads.
+

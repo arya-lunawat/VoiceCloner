@@ -148,140 +148,23 @@ def _generate_in_background(
                 _jobs[job_id]["error"] = str(e)
 
 
-# ---------- 1. Upload + preprocess ----------
-
-@app.post("/upload-voice")
-async def upload_voice(
-    name: str = Form(...),
-    consent_confirmed: bool = Form(...),
-    files: list[UploadFile] = File(...),
-):
-    if not consent_confirmed:
-        raise HTTPException(
-            status_code=400,
-            detail="You must confirm consent (you have the right to clone this voice) before uploading.",
-        )
-    if not files:
-        raise HTTPException(status_code=400, detail="No files uploaded.")
-
-    profile_id = db.new_id()
-    profile_dir = os.path.join(UPLOAD_DIR, profile_id)
-    os.makedirs(profile_dir, exist_ok=True)
-
-    processed_paths = []
-    rejections = []
-
-    for i, f in enumerate(files):
-        raw_path = os.path.join(profile_dir, f"sample_{i}{os.path.splitext(f.filename)[1]}")
-        with open(raw_path, "wb") as out:
-            shutil.copyfileobj(f.file, out)
-
-        try:
-            result = preprocessing.preprocess_voice_sample(raw_path, profile_dir, f"sample_{i}")
-            processed_paths.append(result["processed_path"])
-        except preprocessing.PreprocessingError as e:
-            rejections.append({"file": f.filename, "reason": str(e)})
-
-    if not processed_paths:
-        raise HTTPException(
-            status_code=422,
-            detail={"message": "All uploaded files were rejected during preprocessing.", "rejections": rejections},
-        )
-
-    with db.get_conn() as conn:
-        conn.execute(
-            "INSERT INTO voice_profiles (id, name, consent_confirmed, source_files, embedding_path, created_at, status) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (profile_id, name, 1, json.dumps(processed_paths), None, db.now(), "processing"),
-        )
-        conn.commit()
-
-    return {
-        "voice_profile_id": profile_id,
-        "accepted_samples": len(processed_paths),
-        "rejected_samples": rejections,
-        "next_step": f"POST /create-voice-profile with voice_profile_id={profile_id}",
-    }
-
-
-# ---------- 2. Build the reusable voice embedding ----------
-
-@app.post("/create-voice-profile")
-async def create_voice_profile(voice_profile_id: str = Form(...)):
-    with db.get_conn() as conn:
-        row = conn.execute(
-            "SELECT * FROM voice_profiles WHERE id = ?", (voice_profile_id,)
-        ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Voice profile not found.")
-
-    source_files = json.loads(row["source_files"])
-    embedding_path = os.path.join(EMBED_DIR, f"{voice_profile_id}.pt")
-
-    try:
-        tts_engine.compute_speaker_latents(source_files, embedding_path)
-    except Exception as e:
-        with db.get_conn() as conn:
-            conn.execute(
-                "UPDATE voice_profiles SET status = ? WHERE id = ?", ("failed", voice_profile_id)
-            )
-            conn.commit()
-        raise HTTPException(status_code=500, detail=f"Voice profile creation failed: {e}")
-
-    with db.get_conn() as conn:
-        conn.execute(
-            "UPDATE voice_profiles SET embedding_path = ?, status = ? WHERE id = ?",
-            (embedding_path, "ready", voice_profile_id),
-        )
-        conn.commit()
-
-    return {"voice_profile_id": voice_profile_id, "status": "ready"}
-
-
-# ---------- 3. List voices ----------
-
-@app.get("/voices")
-async def list_voices():
-    with db.get_conn() as conn:
-        rows = conn.execute(
-            "SELECT id, name, status, created_at FROM voice_profiles ORDER BY created_at DESC"
-        ).fetchall()
-    return [dict(r) for r in rows]
-
-
-# ---------- 4. Generate speech (long-form, async) ----------
-
-@app.post("/generate-audio")
-async def generate_audio(
-    voice_profile_id: str = Form(...),
-    text: str = Form(...),
-    language: str = Form("en"),
-):
+def _start_generation_job(
+    text: str,
+    voice_profile_id: str,
+    embedding_path: str,
+    language: str,
+    save_to_library: bool = False,
+) -> str:
     """
-    Start a (potentially long) text-to-speech generation job.
+    Create a job entry and launch the background generation thread.
 
-    Returns immediately with a ``job_id``.  Poll
-    ``GET /generate-audio/{job_id}/status`` for progress updates.
-    When the job status is ``"completed"``, the result audio is available
-    at ``GET /generate-audio/{job_id}``.
+    Shared by every route that kicks off a text-to-speech generation, so
+    the job-tracking dict and thread-launch logic live in exactly one
+    place. Returns the new ``job_id``.
     """
-    if not text.strip():
-        raise HTTPException(status_code=400, detail="Text cannot be empty.")
-
-    with db.get_conn() as conn:
-        row = conn.execute(
-            "SELECT * FROM voice_profiles WHERE id = ?", (voice_profile_id,)
-        ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Voice profile not found.")
-    if row["status"] != "ready":
-        raise HTTPException(status_code=400, detail="Voice profile is not ready yet.")
-
-    # Create the job entry
     generation_id = db.new_id()
     out_path = os.path.join(GEN_DIR, f"{generation_id}.wav")
     created_at = db.now()
-
     job_id = db.new_id()
 
     with _jobs_lock:
@@ -292,36 +175,31 @@ async def generate_audio(
             "completed_chunks": 0,
             "generation_id": None,
             "output_path": None,
-            "is_saved": False,
+            "is_saved": save_to_library,
             "error": None,
         }
 
-    # Launch background thread
     thread = threading.Thread(
         target=_generate_in_background,
         args=(
             job_id,
             text,
             voice_profile_id,
-            row["embedding_path"],
+            embedding_path,
             language,
             generation_id,
             out_path,
             created_at,
-            False,
+            save_to_library,
         ),
         daemon=True,
     )
     thread.start()
 
-    return {
-        "job_id": job_id,
-        "status": "processing",
-        "poll_url": f"/generate-audio/{job_id}/status",
-    }
+    return job_id
 
 
-# ---------- New end-to-end REST API ----------
+# ---------- REST API ----------
 
 @app.post("/voice-profiles")
 async def create_voice_profile_from_recording(
@@ -450,7 +328,7 @@ async def download_voice_recording(voice_profile_id: str):
 
 
 @app.delete("/voice-profiles/{voice_profile_id}")
-async def delete_voice_profile_new(voice_profile_id: str):
+async def delete_voice_profile(voice_profile_id: str):
     with db.get_conn() as conn:
         profile = conn.execute(
             "SELECT * FROM voice_profiles WHERE id = ?", (voice_profile_id,)
@@ -499,39 +377,13 @@ async def create_generation(
     if row["status"] != "ready":
         raise HTTPException(status_code=400, detail="Voice profile is not ready yet.")
 
-    generation_id = db.new_id()
-    out_path = os.path.join(GEN_DIR, f"{generation_id}.wav")
-    created_at = db.now()
-    job_id = db.new_id()
-
-    with _jobs_lock:
-        _jobs[job_id] = {
-            "status": "processing",
-            "progress": "queued",
-            "total_chunks": None,
-            "completed_chunks": 0,
-            "generation_id": None,
-            "output_path": None,
-            "is_saved": save_to_library,
-            "error": None,
-        }
-
-    thread = threading.Thread(
-        target=_generate_in_background,
-        args=(
-            job_id,
-            text,
-            voice_profile_id,
-            row["embedding_path"],
-            language,
-            generation_id,
-            out_path,
-            created_at,
-            save_to_library,
-        ),
-        daemon=True,
+    job_id = _start_generation_job(
+        text=text,
+        voice_profile_id=voice_profile_id,
+        embedding_path=row["embedding_path"],
+        language=language,
+        save_to_library=save_to_library,
     )
-    thread.start()
 
     return {
         "job_id": job_id,
@@ -541,7 +393,7 @@ async def create_generation(
 
 
 @app.get("/generations/{job_id}/status")
-async def get_generation_status_new(job_id: str):
+async def get_generation_status(job_id: str):
     with _jobs_lock:
         job = _jobs.get(job_id)
     if job is None:
@@ -669,111 +521,6 @@ async def rename_library_item(generation_id: str, data: dict = Body(...)):
         conn.execute("UPDATE generations SET name = ? WHERE id = ?", (name, generation_id))
         conn.commit()
     return {"generation_id": generation_id, "name": name}
-
-
-@app.get("/generate-audio/{job_id}/status")
-async def get_generation_status(job_id: str):
-    """Poll the progress of a generation job."""
-    with _jobs_lock:
-        job = _jobs.get(job_id)
-
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found.")
-
-    response = {
-        "job_id": job_id,
-        "status": job["status"],
-        "progress": job["progress"],
-        "total_chunks": job["total_chunks"],
-        "completed_chunks": job["completed_chunks"],
-    }
-
-    if job["status"] == "completed":
-        response["download_url"] = f"/generate-audio/{job_id}"
-    if job["status"] == "failed":
-        response["error"] = job.get("error")
-
-    return response
-
-
-@app.get("/generate-audio/{job_id}")
-async def get_generation_result(job_id: str):
-    """
-    Download the result of a completed generation job.
-
-    Returns the audio file if the job is completed, or an error if it's
-    still processing or failed.
-    """
-    with _jobs_lock:
-        job = _jobs.get(job_id)
-
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    if job["status"] == "processing":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Job is still processing: {job['progress']}",
-        )
-    if job["status"] == "failed":
-        raise HTTPException(
-            status_code=500,
-            detail=f"Generation failed: {job.get('error')}",
-        )
-
-    if not job["output_path"] or not os.path.exists(job["output_path"]):
-        raise HTTPException(status_code=404, detail="Generated audio file not found.")
-
-    return FileResponse(
-        job["output_path"],
-        media_type="audio/wav",
-        filename=f"{job['generation_id']}.wav",
-    )
-
-
-# ---------- 5. Download / stream generated audio (legacy lookup by generation_id) ----------
-
-@app.get("/audio/{generation_id}")
-async def get_audio(generation_id: str):
-    with db.get_conn() as conn:
-        row = conn.execute(
-            "SELECT * FROM generations WHERE id = ?", (generation_id,)
-        ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Generation not found.")
-    return FileResponse(row["audio_path"], media_type="audio/wav", filename=f"{generation_id}.wav")
-
-
-@app.get("/generations")
-async def list_generations(voice_profile_id: str | None = None):
-    with db.get_conn() as conn:
-        if voice_profile_id:
-            rows = conn.execute(
-                "SELECT * FROM generations WHERE voice_profile_id = ? ORDER BY created_at DESC",
-                (voice_profile_id,),
-            ).fetchall()
-        else:
-            rows = conn.execute("SELECT * FROM generations ORDER BY created_at DESC").fetchall()
-    return [dict(r) for r in rows]
-
-
-# ---------- 6. Delete a voice profile (consent / privacy requirement) ----------
-
-@app.delete("/voice-profile/{voice_profile_id}")
-async def delete_voice_profile(voice_profile_id: str):
-    profile_dir = os.path.join(UPLOAD_DIR, voice_profile_id)
-    embedding_path = os.path.join(EMBED_DIR, f"{voice_profile_id}.pt")
-
-    if os.path.isdir(profile_dir):
-        shutil.rmtree(profile_dir)
-    if os.path.exists(embedding_path):
-        os.remove(embedding_path)
-
-    with db.get_conn() as conn:
-        conn.execute("DELETE FROM voice_profiles WHERE id = ?", (voice_profile_id,))
-        conn.execute("DELETE FROM generations WHERE voice_profile_id = ?", (voice_profile_id,))
-        conn.commit()
-
-    return {"deleted": voice_profile_id}
 
 
 # Serve the simple frontend

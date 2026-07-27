@@ -1,7 +1,13 @@
-# Fix Abbreviation-Safe Sentence Splitter
+# TODO: Consolidate API Surface
 
 ## Steps
-- [x] 1. Fix `backend/chunking.py`: Add `re.IGNORECASE` to `_SENTENCE_END_RE` compilation
-- [x] 2. Strengthen `tests/test_chunking.py`: Add direct test for `_split_sentences` with capitalized abbreviations
-- [x] 3. Run test suite and confirm everything passes
+- [x] 1. Plan and confirm with user
+- [x] 2. Edit `backend/main.py`:
+  - [x] 2a. Add `_start_generation_job()` helper
+  - [x] 2b. Remove all legacy routes (upload-voice, create-voice-profile, /voices, generate-audio, /audio/{id}, /generations (old), /voice-profile/{id})
+  - [x] 2c. Refactor `POST /generations` to use `_start_generation_job()`
+  - [x] 2d. Rename `delete_voice_profile_new` → `delete_voice_profile`, `get_generation_status_new` → `get_generation_status`
+- [x] 3. Update `tests/test_api_endpoints.py` to target new API
+- [x] 4. Update `README.md` with user-provided content
+- [x] 5. Run tests — all 23 passed
 
