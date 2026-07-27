@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
-from chunking import chunk_text
+from chunking import chunk_text, _split_sentences
 
 
 # ── Tests ────────────────────────────────────────────────────────────────
@@ -95,4 +95,19 @@ def test_multiple_sentences_in_one_chunk():
     # There should be fewer chunks than sentences (grouping occurred)
     num_sentences = text.count(".")
     assert len(result) < num_sentences
+
+
+def test_abbreviation_split_sentences_direct():
+    """_split_sentences must not split on capitalized abbreviations (Dr., Mr., etc.).
+
+    This tests the internal splitting logic directly, bypassing the merge
+    pass (Step 4 of chunk_text) which masks incorrect intermediate splits.
+    """
+    text = "I met Dr. Smith yesterday. He works with Mr. Jones at the clinic."
+    sentences = _split_sentences(text)
+    assert len(sentences) == 2, (
+        f"Expected exactly 2 sentences, got {len(sentences)}: {sentences}"
+    )
+    assert sentences[0] == "I met Dr. Smith yesterday."
+    assert sentences[1] == "He works with Mr. Jones at the clinic."
 

@@ -42,7 +42,8 @@ _ABBREVIATIONS = frozenset({
 # avoid splitting on known abbreviations.
 _SENTENCE_END_RE = re.compile(
     r"(?<!\b" + r")(?<!\b".join(re.escape(abbr) for abbr in sorted(_ABBREVIATIONS, key=len, reverse=True)) + r")"
-    r"[.!?]['\")\]]*(?:\s+|\Z)"
+    r"[.!?]['\")\]]*(?:\s+|\Z)",
+    re.IGNORECASE,
 )
 
 # Clause boundaries (for fallback when a sentence is too long)
